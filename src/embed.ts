@@ -1,8 +1,9 @@
-import { MarkdownRenderChild, TFile, type MarkdownPostProcessorContext } from 'obsidian';
+import { FileView, MarkdownRenderChild, TFile, type MarkdownPostProcessorContext } from 'obsidian';
 import { svgEl } from './dom';
 import { makeEngine } from './engine';
 import type EvraPlugin from './main';
 import { normDoc } from './model';
+import { VIEW_TYPE } from './view';
 import type { EvraDoc } from './types';
 
 /* A timeline inside a note:
@@ -29,7 +30,9 @@ function findTimeline(plugin: EvraPlugin, name: string | undefined, sourcePath: 
 	}
 	const all = plugin.app.vault.getFiles().filter((x) => x.extension === 'evra').sort((a, b) => a.path.localeCompare(b.path));
 	const dir = sourcePath.split('/').slice(0, -1).join('/');
-	return all.find((x) => (x.parent ? x.parent.path : '') === dir) || all[0] || null;
+	// a root-level file's parent path is '/', while a root note's folder is ''
+	const folderOf = (x: TFile) => { const p = x.parent ? x.parent.path : ''; return p === '/' ? '' : p; };
+	return all.find((x) => folderOf(x) === dir) || all[0] || null;
 }
 
 class EmbedChild extends MarkdownRenderChild {
@@ -42,6 +45,16 @@ class EmbedChild extends MarkdownRenderChild {
 		this.registerEvent(this.plugin.app.vault.on('modify', (f) => { if (f.path.endsWith('.evra') && (this.filePath == null || f.path === this.filePath)) void this.render(); }));
 		// a renamed timeline can change which file the embed's name points at, so resolve it again
 		this.registerEvent(this.plugin.app.vault.on('rename', (f, oldPath) => { if (f.path.endsWith('.evra') || oldPath.endsWith('.evra')) void this.render(); }));
+	}
+	/** Show an event: in the leaf that already has this timeline open, or in a new one. */
+	private async open(file: TFile, id: string) {
+		const ws = this.plugin.app.workspace;
+		// the view state names the file even for a background tab that hasn't loaded its view yet
+		const leaf = ws.getLeavesOfType(VIEW_TYPE).find((l) => (l.view instanceof FileView && l.view.file === file) || (l.getViewState().state as { file?: string } | undefined)?.file === file.path);
+		if (!leaf) { await ws.getLeaf(false).openFile(file, { eState: { evraFocus: id } }); return; }
+		if (!(leaf.view instanceof FileView)) { ws.setActiveLeaf(leaf, { focus: true }); await leaf.openFile(file, { eState: { evraFocus: id } }); return; } // not loaded yet: load it there
+		// setActiveLeaf brings its tab to the front (revealLeaf needs a newer Obsidian than minAppVersion)
+		await leaf.openFile(file, { active: true, eState: { evraFocus: id } }); // same file: Obsidian just brings the leaf forward and passes the focus request
 	}
 	async render() {
 		const gen = ++this.gen, el = this.containerEl, o = parseEmbed(this.src);
@@ -57,9 +70,7 @@ class EmbedChild extends MarkdownRenderChild {
 		el.addClass('evra-embed');
 		if (!file) { el.createDiv({ cls: 'eh', text: o.timeline ? `No timeline called “${o.timeline}”.` : 'No timelines in this vault yet.' }); return; }
 		if (failed) { el.createDiv({ cls: 'eh', text: `“${file.basename}” couldn’t be read.` }); return; }
-		drawEmbed(el, doc, o, (id) => {
-			void this.plugin.app.workspace.getLeaf(false).openFile(file, { eState: { evraFocus: id } });
-		}, (link) => this.plugin.app.metadataCache.getFirstLinkpathDest(link, file.path)?.basename || link.split('/').pop());
+		drawEmbed(el, doc, o, (id) => void this.open(file, id), (link) => this.plugin.app.metadataCache.getFirstLinkpathDest(link, file.path)?.basename || link.split('/').pop());
 	}
 }
 
@@ -67,11 +78,17 @@ export function drawEmbed(el: HTMLElement, doc: EvraDoc, o: Record<string, strin
 	const E = makeEngine(() => doc), dep = E.eraDepths();
 	const col = (c: string | null) => { const p = c && doc.palette.find((x) => x.id === c); return p ? p.hex || `var(--evra-c${p.id})` : 'var(--evra-muted)'; };
 	let a = E.yearStartT(doc.range[0]), b = E.yearStartT(doc.range[1]), title = doc.name;
-	if (o.era) { const e = doc.eras.find((x) => x.name.toLowerCase() === o.era.toLowerCase()); if (e) { a = e.start; b = e.end; title = e.name; } }
+	if (o.era) {
+		const e = doc.eras.find((x) => x.name.toLowerCase() === o.era.toLowerCase());
+		// say so rather than quietly showing the whole timeline
+		if (!e) { el.createDiv({ cls: 'eh', text: `No era called “${o.era}” in ${doc.name}.` }); return; }
+		a = e.start; b = e.end; title = e.name;
+	}
 	// from:/to: that aren't years are ignored rather than giving an empty, NaN range
 	const from = o.from ? parseInt(o.from, 10) : NaN, to = o.to ? parseInt(o.to, 10) : NaN;
 	if (Number.isFinite(from)) a = E.toT(from - doc.cal.yearStart, 0, 0);
-	if (Number.isFinite(to)) b = E.toT(to - doc.cal.yearStart, 0, 0);
+	// to: is inclusive: it runs to the last day of that year, so "to: 38" shows Year 38's events and the header ends in 38
+	if (Number.isFinite(to)) b = E.yearStartT(to - doc.cal.yearStart + 1) - 1;
 	const tag = o.tag ? o.tag.replace(/^#/, '') : '';
 	const evs = doc.events.filter((e) => (e.end != null ? e.end : e.t) >= a && e.t <= b && (!tag || (e.tags || []).includes(tag))).sort((x, y) => x.t - y.t);
 	const W = 600, H = 58, X = (t: number) => 12 + ((t - a) / Math.max(1, b - a)) * (W - 24), rd = (v: number) => Math.round(v * 10) / 10;
@@ -95,6 +112,7 @@ export function drawEmbed(el: HTMLElement, doc: EvraDoc, o: Record<string, strin
 		btn.addEventListener('click', () => open(e.id));
 	});
 	if (evs.length > 10) ol.createEl('li', { cls: 'more', text: `and ${evs.length - 10} more` });
+	if (!evs.length && tag) ol.createEl('li', { cls: 'more', text: `No events tagged #${tag}.` });
 }
 
 export function renderEmbed(plugin: EvraPlugin, src: string, el: HTMLElement, ctx: MarkdownPostProcessorContext) {

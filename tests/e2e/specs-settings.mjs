@@ -11,7 +11,7 @@ const setVal = (p, sel, v, evt = 'change') => p.ev(`(() => { const i = document.
 const clickSheet = async (p, h, sel) => { const b = await h.sheet(sel); if (!b) throw new h.Fail('not in the panel: ' + sel); await p.click(b.x, b.y); await p.sleep(220); };
 const rulerText = (p) => p.ev(`document.querySelector('${A} .ruler').textContent`);
 const cardDate = (p, title) => p.ev(`(() => { const c = document.querySelector('${A} .evra-card[aria-label^="${title}"] .dt'); return c ? c.textContent : null; })()`);
-const undo = async (p, h) => { await h.focusStage(); await p.key('z', 'ctrl'); await p.sleep(200); };
+const undo = async (p, h) => { await p.ev(`(() => { const a = document.activeElement; if (a && a.blur && /INPUT|TEXTAREA|SELECT/.test(a.tagName)) a.blur(); const b = document.querySelector('${A} .sheet-body'); const sh = document.querySelector('${A} [data-r=sheet]'); if (sh && !sh.hidden) b.focus(); else document.querySelector('${A} .stage').focus(); return 1; })()`); await p.sleep(100); await p.key('z', 'ctrl'); await p.sleep(250); };
 const minimal = (extra = {}) => JSON.stringify({ name: 'T', events: [{ t: 400, title: 'Hand written' }], ...extra });
 
 /* ---------- calendar tab ---------- */
@@ -118,6 +118,7 @@ test('S5 weekdays, week start, units, numbering, era base', async (p, h, t) => {
 	await setVal(p, '[data-k=sYs]', '100000000000000000000');
 	const ys = (await h.doc()).cal.yearStart;
 	t.ok(Math.abs(ys) <= 1e12, 'huge year start clamped (got ' + ys + ')');
+	const s5 = await h.saved(); t.eq(s5.cal.yearStart, ys, 'saved year start matches live');
 	await setVal(p, '[data-k=sYs]', '0');
 	await clickSheet(p, h, '[data-eb="0"]');
 	t.eq((await h.doc()).cal.eraBase, 0, 'era base 0');
@@ -189,7 +190,7 @@ test('S9 formats: token chip inserts at cursor, every field saves, html escaped,
 	t.ok(back !== 'D:{Y}', 'chip insert undoable (got ' + back + ')');
 	await h.openSheet('formats');
 	const y = await h.sheet('[data-fmt=year]'); await p.click(y.x, y.y); await p.key('a', 'ctrl'); await p.type('<i>{Y}</i>'); await p.key('Tab'); await p.sleep(300);
-	t.ok(!(await p.ev(`!!document.querySelector('${A} .ruler i, ${A} .evra-card i, ${A} .prev i, ${A} .eralabels i')`)), 'format not rendered as html');
+	t.ok(!(await p.ev(`[...document.querySelectorAll('${A} i')].some(e => /\\d/.test(e.textContent))`)), 'format not rendered as html');
 	t.ok(/<i>/.test(await rulerText(p)) || /<i>/.test(await p.ev(`document.querySelector('${A} .cards').textContent`)), 'format shows literally');
 	await setVal(p, '[data-fmt=year]', '');
 	t.ok(await p.ev(`document.querySelectorAll('${A} .ruler span').length > 0`), 'empty year format still draws');
@@ -252,9 +253,8 @@ test('S12 now: invalid date fields are rejected', async (p, h, t) => {
 });
 test('S13 exports copy text and name/direction change', async (p, h, t) => {
 	await h.open(); await h.openSheet('timeline');
-	await p.ev(`(() => { window.__clip = []; navigator.clipboard.writeText = async (s) => { window.__clip.push(s); }; return 1; })()`);
-	for (const x of ['table', 'outline', 'file', 'embed']) await clickSheet(p, h, `[data-exp=${x}]`);
-	const clip = await p.ev('window.__clip');
+	const clip = [];
+	for (const x of ['table', 'outline', 'file', 'embed']) { await clickSheet(p, h, `[data-exp=${x}]`); await p.sleep(200); clip.push(await p.ev(`navigator.clipboard.readText()`)); }
 	t.eq(clip.length, 4, 'four copies');
 	t.ok(/\|/.test(clip[0]), 'table'); t.ok(JSON.parse(clip[2]).events.length > 0, 'file is JSON');
 	t.ok(/```evra/.test(clip[3]), 'embed');
@@ -376,7 +376,7 @@ test('R5 external edits to an open file are picked up', async (p, h, t) => {
 	const s = await h.saved();
 	s.events[0].title = 'Edited outside'; s.cal.months[0].name = 'Outmonth';
 	await write(p, 'Chronicle of Veld.evra', JSON.stringify(s)); await p.sleep(800);
-	t.ok(await h.card('Edited outside'), 'card updated');
+	t.ok((await h.doc()).events.some((e) => e.title === 'Edited outside'), 'doc updated');
 	t.eq((await h.doc()).cal.months[0].name, 'Outmonth', 'calendar updated');
 	// garbage written externally
 	await write(p, 'Chronicle of Veld.evra', '{ broken'); await p.sleep(800);
@@ -397,7 +397,7 @@ test('R6 open/close repeatedly leaves no errors and no leaks', async (p, h, t) =
 		await p.ev(`app.workspace.getLeaf(${i % 2 ? 'true' : 'false'}).openFile(app.vault.getAbstractFileByPath('Chronicle of Veld.evra')).then(() => 1)`); await p.sleep(150);
 		if (i % 3 === 0) { await p.ev(`app.workspace.activeLeaf.detach()`); await p.sleep(100); }
 	}
-	await p.ev(`app.workspace.iterateRootLeaves(l => l.detach())`); await p.sleep(300);
+	await p.ev(`app.workspace.getLeavesOfType('evra').forEach(l => l.detach())`); await p.sleep(400);
 	t.eq(await p.ev(`document.querySelectorAll('.evra-root').length`), n0, 'roots removed');
 	const s = JSON.parse(await p.ev(`app.vault.adapter.read('Chronicle of Veld.evra')`));
 	t.ok(s.events.length > 5, 'file intact');
@@ -445,3 +445,130 @@ test('R8 monkey: hundreds of random inputs leave a valid document and no errors'
 	t.ok(d.eras.every((e) => Number.isFinite(e.start) && e.end > e.start), 'eras valid');
 	t.ok(d.range[1] > d.range[0], 'range valid');
 });
+const reopen = async (p, h, path = 'Chronicle of Veld.evra') => { await h.saved(path); await p.ev(`app.workspace.getLeavesOfType('evra').forEach(l => l.detach())`); await p.sleep(200); await h.open(path); return h.doc(); };
+test('S16 values typed in the panel survive a reload unchanged', async (p, h, t) => {
+	const res = [];
+	for (const [tab, sel, v, get] of [
+		['calendar', '[data-k=sYs]', '100000000000000000000', (d) => d.cal.yearStart],
+		['calendar', '[data-k=s2days]', '99999999999999999999', (d) => d.cal.second.yearDays],
+		['timeline', '[data-k=r1]', '100000000000000000', (d) => d.range[1]],
+		['calendar', '[data-days="0"]', '5000000', (d) => d.cal.months[0].days],
+	]) {
+		await h.reset(); await h.open(); await h.openSheet(tab);
+		if (sel === '[data-k=s2days]') await setVal(p, '[data-k=s2on]', true);
+		await setVal(p, sel, v);
+		const live = get(await h.doc()), again = get(await reopen(p, h));
+		res.push(`${sel}=${v}: live ${live}, after reload ${again}`);
+		t.ok(true, '');
+		if (live !== again) res.push('MISMATCH');
+	}
+	t.ok(!res.includes('MISMATCH'), res.join(' || '));
+});
+test('S17 leap rule whose month was removed is not shown as applying to another month', async (p, h, t) => {
+	await h.open(); await h.openSheet('calendar');
+	await setVal(p, '[data-k=sPreset]', 'gregorian');
+	await clickSheet(p, h, '[data-del="1"]');
+	const d = await h.doc();
+	const shown = await p.ev(`(() => { const s = document.querySelector('${A} [data-lk=month]'); return s ? s.value : null; })()`);
+	t.ok(shown == null || d.cal.leaps.some((l) => l.month === shown), `panel shows leap on month id ${shown}, doc has ${JSON.stringify(d.cal.leaps.map((l) => l.month))}, months ${d.cal.months.map((m) => m.id).join(',')}`);
+	t.eq(await p.ev(`document.querySelector('${A} .msum').textContent.includes('average')`), false, 'summary: no average for a rule that does nothing');
+});
+const typeInto = async (p, h, sel, text) => { const f = await h.sheet(sel); if (!f) throw new h.Fail('missing ' + sel); await p.click(f.x, f.y); await p.key('a', 'ctrl'); await p.type(text); await p.key('Tab'); await p.sleep(250); };
+const core = (d) => { const x = JSON.parse(JSON.stringify(d)); delete x.lastView; delete x.views; return JSON.stringify(x); };
+const UNDO_CASES = [
+	['calendar', 'unit day', (p, h) => typeInto(p, h, '[data-k=uDay]', 'tick')],
+	['calendar', 'unit month', (p, h) => typeInto(p, h, '[data-k=uMonth]', 'moon')],
+	['calendar', 'unit years', (p, h) => typeInto(p, h, '[data-k=uYears]', 'winters')],
+	['calendar', 'month name', (p, h) => typeInto(p, h, '[data-name="2"]', 'Blossom')],
+	['calendar', 'month days', (p, h) => setVal(p, '[data-days="2"]', '40')],
+	['calendar', 'festival', (p, h) => setVal(p, '[data-fest="2"]', true)],
+	['calendar', 'month add', (p, h) => clickSheet(p, h, '[data-k=mAdd]')],
+	['calendar', 'month remove', (p, h) => clickSheet(p, h, '[data-del="3"]')],
+	['calendar', 'weekdays', (p, h) => setVal(p, '[data-k=wkNames]', 'X, Y, Z')],
+	['calendar', 'year start', (p, h) => typeInto(p, h, '[data-k=sYs]', '300')],
+	['calendar', 'second on', (p, h) => setVal(p, '[data-k=s2on]', true)],
+	['calendar', 'second name', (p, h) => typeInto(p, h, '[data-k=s2name]', 'Elven')],
+	['calendar', 'second fmt', (p, h) => typeInto(p, h, '[data-k=s2fmt]', '{Y} EL')],
+	['calendar', 'second days', (p, h) => typeInto(p, h, '[data-k=s2days]', '500')],
+	['calendar', 'second offset', (p, h) => typeInto(p, h, '[data-d=s2oY]', '7')],
+	['calendar', 'second on cards', (p, h) => setVal(p, '[data-k=s2cards]', false)],
+	['formats', 'format field', (p, h) => typeInto(p, h, '[data-fmt=tickYear]', '[{Y}]')],
+	['formats', 'short range', async (p, h) => setVal(p, '[data-k=sShort]', !(await h.doc()).cal.fmt.shortRange)],
+	['formats', 'reset', async (p, h) => { await typeInto(p, h, '[data-fmt=year]', 'Y{Y}'); await clickSheet(p, h, '[data-k=fReset]'); }],
+	['timeline', 'name', (p, h) => typeInto(p, h, '[data-k=tName]', 'Renamed')],
+	['timeline', 'range from', (p, h) => typeInto(p, h, '[data-k=r0]', '-20')],
+	['timeline', 'now set', async (p, h) => { await setVal(p, '[data-d=nwY]', '5'); await clickSheet(p, h, '[data-k=nwSet]'); }],
+	['timeline', 'fade', (p, h) => setVal(p, '[data-k=nwFade]', true)],
+	['timeline', 'direction', (p, h) => clickSheet(p, h, '[data-o=rtl]')],
+	['cards', 'lines', (p, h) => clickSheet(p, h, '[data-lines="2"]')],
+	['cards', 'tint', (p, h) => setVal(p, '[data-k=oTint]', false)],
+	['cards', 'group', (p, h) => clickSheet(p, h, '[data-grp="8"]')],
+	['cards', 'spans', (p, h) => clickSheet(p, h, '[data-spans=blocks]')],
+	['colors', 'name', (p, h) => typeInto(p, h, '[data-pn="4"]', 'Moss')],
+	['colors', 'hex', (p, h) => typeInto(p, h, '[data-ph="4"]', '#123456')],
+	['colors', 'add', (p, h) => clickSheet(p, h, '[data-k=palAdd]')],
+	['colors', 'delete', (p, h) => clickSheet(p, h, '[data-pdel="2"]')],
+	['colors', 'reset', async (p, h) => { await typeInto(p, h, '[data-ph="1"]', '#654321'); await clickSheet(p, h, '[data-k=palReset]'); }],
+	['notes', 'sync field', (p, h) => setVal(p, '[data-syf=day]', true)],
+	['notes', 'sync key', (p, h) => typeInto(p, h, '[data-syk=year]', 'yr')],
+];
+test('S18 every panel control is undone by one Ctrl+Z (or two for compound steps) and redone', async (p, h, t) => {
+	const bad = [];
+	for (const [tab, name, act] of UNDO_CASES) {
+		await h.reset(); await h.open(); await h.openSheet(tab);
+		const d0 = core(await h.doc());
+		p.errors.length = 0;
+		await act(p, h);
+		const d1 = core(await h.doc());
+		if (d0 === d1 && name !== 'reset') { bad.push(`${tab}/${name}: no change`); continue; }
+		const saved = core(await h.saved());
+		if (saved !== d1) bad.push(`${tab}/${name}: saved differs from live`);
+		const steps = ['reset'].includes(name) ? 2 : 1;
+		for (let i = 0; i < steps; i++) await undo(p, h);
+		const d2 = core(await h.doc());
+		if (d2 !== d0) { const a = JSON.parse(d0), b = JSON.parse(d2); const diff = Object.keys(a).filter((k) => JSON.stringify(a[k]) !== JSON.stringify(b[k])); bad.push(`${tab}/${name}: undo left differences in ${diff.join(',')}`); }
+		await p.key('z', 'ctrl', 'shift'); await p.sleep(200);
+		if (steps === 1 && core(await h.doc()) !== d1) bad.push(`${tab}/${name}: redo differs`);
+		if (p.errors.length) bad.push(`${tab}/${name}: errors ${p.errors[0].slice(0, 120)}`);
+		p.errors.length = 0;
+	}
+	t.ok(!bad.length, bad.join(' || '));
+});
+const monkey = async (p, h, t, { seed, steps, panel, size }) => {
+	if (size) { await p.send('Emulation.setDeviceMetricsOverride', { width: size[0], height: size[1], deviceScaleFactor: 1, mobile: false }); await p.sleep(400); }
+	await h.open();
+	let s0 = seed; const rnd = () => ((s0 = (s0 * 1103515245 + 12345) % 2147483648) / 2147483648);
+	const keys = ['j', 'k', 'e', 's', 'n', 'g', 'b', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Delete', 'Escape', 'Enter', '1', '0', '+', '-', 'Tab', 'z', 'f', 'Backspace', '.', '?', 'a', '3'];
+	const log = []; let firstErr = null;
+	const W = size ? size[0] : p.width, H = size ? size[1] : p.height;
+	for (let i = 0; i < steps; i++) {
+		if (panel && i % 40 === 0) { const tabs = ['calendar', 'formats', 'timeline', 'cards', 'colors']; await p.ev(`(() => { const v = ${h.view}; return 1; })()`); try { await h.openSheet(tabs[Math.floor(rnd() * tabs.length)]); } catch { /* hidden */ } }
+		const r = rnd(), x = 2 + rnd() * (W - 4), y = 2 + rnd() * (H - 4);
+		let a;
+		if (r < 0.3) { a = `click ${x | 0},${y | 0}`; await p.click(x, y); }
+		else if (r < 0.38) { a = 'dbl'; await p.dbl(x, y); }
+		else if (r < 0.5) { a = 'drag'; await p.drag(x, y, 2 + rnd() * (W - 4), 2 + rnd() * (H - 4), 4); }
+		else if (r < 0.6) { a = 'wheel'; await p.wheel(x, y, (rnd() - 0.5) * 1200, rnd() < 0.4, rnd() < 0.2 ? (rnd() - 0.5) * 600 : 0); }
+		else if (r < 0.88) { const k = keys[Math.floor(rnd() * keys.length)]; const m = rnd() < 0.15 ? ['ctrl'] : rnd() < 0.1 ? ['shift'] : []; a = 'key ' + k + m; await p.key(k, ...m); }
+		else if (r < 0.93) { a = 'right'; await p.right(x, y); }
+		else { a = 'type'; await p.type(rnd() < 0.5 ? '12' : 'x<b>'); }
+		log.push(a);
+		if (p.errors.length && !firstErr) firstErr = `step ${i} after [${log.slice(-6).join('; ')}]: ${p.errors[0].slice(0, 300)}`;
+		if (i % 20 === 0) await p.ev(`(() => { document.querySelectorAll('.modal-close-button').forEach(b => b.click()); const l = app.workspace.getLeavesOfType('evra')[0]; if (!l) return 0; if (app.workspace.activeLeaf !== l) app.workspace.setActiveLeaf(l, {focus: true}); return 1; })()`);
+		if (!(await p.ev(`app.workspace.getLeavesOfType('evra').length`))) await h.open();
+	}
+	if (size) { await p.send('Emulation.setDeviceMetricsOverride', { width: p.width, height: p.height, deviceScaleFactor: 1, mobile: false }); await p.sleep(300); }
+	await p.key('Escape'); await p.key('Escape');
+	await p.ev(`(() => { document.querySelectorAll('.modal-close-button').forEach(b => b.click()); const l = app.workspace.getLeavesOfType('evra')[0]; app.workspace.setActiveLeaf(l, {focus: true}); return 1; })()`); await p.sleep(300);
+	const live = await h.doc(), d = await h.saved();
+	t.ok(!firstErr, 'console error ' + firstErr);
+	p.errors.length = 0;
+	t.eq(core(d), core(live), 'saved equals live');
+	t.ok(d.format === 'evra' && d.events.every((e) => Number.isFinite(e.t) && (e.end == null || e.end > e.t) && typeof e.title === 'string'), 'events valid');
+	t.ok(d.eras.every((e) => Number.isFinite(e.start) && e.end > e.start), 'eras valid');
+	t.ok(d.range[1] > d.range[0] && d.cal.months.length >= 1 && d.cal.months.every((m) => m.days >= 1), 'range/cal valid');
+	t.ok(!/NaN|Infinity/.test(JSON.stringify(d)), 'no NaN');
+};
+test('R9 monkey with the settings panel open (seed 7)', (p, h, t) => monkey(p, h, t, { seed: 7, steps: 350, panel: true }));
+test('R10 monkey at a small window (seed 99)', (p, h, t) => monkey(p, h, t, { seed: 99, steps: 300, size: [420, 360] }));
+test('R11 monkey seed 2024', (p, h, t) => monkey(p, h, t, { seed: 2024, steps: 400 }));

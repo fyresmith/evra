@@ -92,10 +92,19 @@ export default class EvraPlugin extends Plugin {
 				let doc: { events?: { file?: string | null }[]; opts?: { sync?: { notes?: string[] } } };
 				try { doc = JSON.parse(data) as typeof doc; } catch { return data; }
 				let changed = false;
+				const dirOf = (p: string) => p.split('/').slice(0, -1).join('/'), here = dirOf(f.path);
 				(doc.events || []).forEach((e) => {
 					if (!e || !e.file || !linkMatchesPath(e.file, oldPath)) return;
-					const now = this.app.metadataCache.getFirstLinkpathDest(e.file, f.path), link = this.app.metadataCache.fileToLinktext(file, f.path, true);
-					if ((!now || now === file) && e.file !== link) { e.file = link; changed = true; }
+					const link = this.app.metadataCache.fileToLinktext(file, f.path, true);
+					if (e.file === link) return;
+					// Did this link point at the moved note before the move? A link naming the full old path did. A shorter one
+					// (a bare name) may now resolve to another note with the same name; it only pointed at that other note
+					// before if Obsidian would have preferred it then: it sits beside the timeline and the old note didn't.
+					// When unsure, keep the card on the note it was showing: the one that moved.
+					const now = this.app.metadataCache.getFirstLinkpathDest(e.file, f.path);
+					const otherWon = now && now !== file && dirOf(now.path) === here && dirOf(oldPath) !== here;
+					const fullPath = e.file.split('|')[0].split('#')[0].replace(/\.md$/, '') === oldPath.replace(/\.md$/, '');
+					if (fullPath || !otherWon) { e.file = link; changed = true; }
 				});
 				// as the open view does: the list of notes carrying synced properties follows the rename
 				const sn = doc.opts && doc.opts.sync && doc.opts.sync.notes;
@@ -144,7 +153,9 @@ export default class EvraPlugin extends Plugin {
 	}
 
 	private async uniquePath(folder: string, name: string, ext: string) {
-		const clean = name.replace(/[\\/:*?"<>|#^[\]]/g, '').trim() || 'Untitled';
+		// no leading dots (a hidden file the vault never lists), no trailing dots or spaces (invalid on Windows),
+		// and short enough to leave room for the folder, a " 2" suffix and the extension
+		const clean = name.replace(/[\\/:*?"<>|#^[\]]/g, '').trim().replace(/^\.+/, '').slice(0, 150).replace(/[. ]+$/, '').trim() || 'Untitled';
 		const base = normalizePath(folder ? `${folder}/${clean}` : clean);
 		let path = `${base}.${ext}`, k = 2;
 		while (this.app.vault.getAbstractFileByPath(path)) path = `${base} ${k++}.${ext}`;
@@ -188,7 +199,15 @@ export default class EvraPlugin extends Plugin {
 			if (!this.app.vault.getAbstractFileByPath(p)) await this.app.vault.create(p, text);
 		}
 		if (!this.app.vault.getAbstractFileByPath(`${folder}/The Heron.svg`)) await this.app.vault.create(`${folder}/The Heron.svg`, SAMPLE_COVER);
-		const f = await this.app.vault.create(`${folder}/Chronicle of Veld.evra`, JSON.stringify(sampleDoc(), null, '\t'));
+		// link each card to the sample's own note, even when the vault has another note with the same name
+		const evraPath = `${folder}/Chronicle of Veld.evra`, mc = this.app.metadataCache;
+		const link = (name: string) => {
+			const note = this.app.vault.getAbstractFileByPath(`${folder}/${name}.md`);
+			if (!(note instanceof TFile)) return `${folder}/${name}`;
+			const text = mc.fileToLinktext(note, evraPath, true);
+			return mc.getFirstLinkpathDest(text, evraPath) === note ? text : `${folder}/${name}`; // the full path if the short one is taken
+		};
+		const f = await this.app.vault.create(evraPath, JSON.stringify(sampleDoc(link), null, '\t'));
 		await this.app.workspace.getLeaf('tab').openFile(f);
 		new Notice('Opened the sample timeline. Its notes are in the sample folder next to it.');
 	}

@@ -154,7 +154,8 @@ for (const d of DIRS) test(`[${d}] the breadcrumb is never covered by ruler labe
 	const k = kit(p, h); await k.start(d);
 	await k.view(13975, 40);
 	for (const r of [[13984, 14006], [13988, 14002], [13992, 13999]]) await k.mkEra(...r); // a long breadcrumb
-	for (const v of [[12600, 3600], [13975, 40], [11000, 16 * 360]]) {
+	const views = [[12600, 3600], [13975, 40]]; for (let v0 = 9000; v0 <= 12000; v0 += 250) views.push([v0, 20 * 360]);
+	for (const v of views) {
 		await k.view(...v);
 		const covered = await p.ev(`[...document.querySelectorAll('${A} .crumb button')].map(b => { const r = b.getBoundingClientRect(); const pts = [[r.left + 4, r.top + r.height / 2], [r.left + r.width / 2, r.top + r.height / 2], [r.right - 4, r.top + r.height / 2]]; return pts.some(([x, y]) => { const e = document.elementFromPoint(x, y); return e && !e.closest('.crumb'); }) ? b.textContent : null; }).filter(Boolean)`);
 		t.ok(!covered.length, `covered at ${v}: ${covered.join(', ')}`);

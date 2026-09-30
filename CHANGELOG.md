@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.7.5 (beta)
+
+- Timelines in notes: a note at the vault root picks the timeline next to it; `to:` includes that whole year; clicking an event reuses the pane that already shows the timeline; an unknown `era:` or a tag with no events says so.
+- Notes made from cards: names starting with a dot, very long names, or ending in dots or spaces are made safe.
+- The sample timeline links to its own notes even when your vault has notes with the same names.
+- Renaming a note keeps the links right in closed timelines when another note has the same name.
+
 ## 0.7.4 (beta)
 
 - Dates written ISO-style (2024-05-01, 2024/05/01, 2024-05) are read as year-month-day in search and in note properties, instead of as Year 1.
