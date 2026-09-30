@@ -7,3 +7,4 @@ test-vault/.obsidian/plugins/evra/
 test-vault/.obsidian/workspace*.json
 .DS_Store
 test-vault/Aerth/
+.claude/

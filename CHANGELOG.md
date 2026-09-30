@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.6.4 (beta)
+
+- Fixed: moving a card together with a card pinned to it (arrow keys or dragging a selection) moved the pinned card twice.
+- New spans made from a moment (S, or **Make it a span**) are a whole year long in whole days, even with leap years (they could get fractional dates).
+- The filter pill and the +N thread markers are only rebuilt when they change: faster, and clicks on them during an animation are no longer lost.
+
 ## 0.6.3 (beta)
 
 - Fixed: with note sync on, moving a card twice in quick succession could move it back, when Evra's own property write came back as a note change.

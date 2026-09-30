@@ -58,7 +58,7 @@ interface At { x: number; y: number }
 interface Drag {
 	type: 'pan' | 'card' | 'group' | 'dot' | 'bound' | 'select' | 'marquee' | 'zoomdot' | 'pinch';
 	start?: Local; moved?: boolean; armed?: boolean; timer?: number; before?: string;
-	id?: string; together?: { id: string; t: number; end?: number }[]; el0?: At; free?: At; orig?: { t: number; end?: number; side: Side };
+	id?: string; together?: { id: string; t: number; end?: number; relAt?: number }[]; el0?: At; free?: At; orig?: { t: number; end?: number; side: Side };
 	year?: number; members?: { id: string; t: number }[];
 	which?: 'point' | 'start' | 'end' | 'auto'; o?: { t: number; end?: number; os?: boolean; oe?: boolean };
 	d?: Dot; a?: number; b?: number; keep?: string[]; v0?: number; x0?: number; era?: string; thread?: string; last?: number;
@@ -1026,8 +1026,8 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 		renderRulerSpans(box, ticks);
 	}
 	function renderBundles() {
-		const box = $('bundles');
-		setHTML(box, (F.bundles || []).map((b, i) => `<button class="bundle" data-i="${i}" title="${esc(b.ids.map((id) => titleOf(evById(id))).join(', '))}">+${b.n}</button>`).join(''));
+		const box = $('bundles'), bk = (F.bundles || []).map((b) => b.side + b.n + b.ids.join()).join('|');
+		if (bk !== bundleKey) { bundleKey = bk; setHTML(box, (F.bundles || []).map((b, i) => `<button class="bundle" data-i="${i}" title="${esc(b.ids.map((id) => titleOf(evById(id))).join(', '))}">+${b.n}</button>`).join('')); }
 		(Array.from(box.children) as HTMLElement[]).forEach((el, i) => {
 			const b = F.bundles[i], [x, y] = xy(b.s, (b.side === 'a' ? -1 : 1) * laneC(MAXL - 1));
 			el.setCssStyles({ left: rd(x) + 'px', top: rd(y) + 'px' });
@@ -1102,12 +1102,20 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 		S.events = S.events.filter((e) => !set.has(e.id)); setSel([]); commit(before);
 		toast(ids.length === 1 ? 'Deleted.' : `Deleted ${ids.length} cards.`, true);
 	}
+	/** The same day a year later: spans made from a moment start a year long, in whole days even with leap years. */
+	const yearLater = (t: number) => { const p = parts(t); return Math.max(t + 1, toT(p.yr + 1, p.m, p.d)); };
 	function nudgeSel(dir: number, fine: boolean) {
 		const ids = selIds();
 		if (!ids.length) return;
 		const before = snapshot(), lead = evById(sel), d = fine ? dir : stepT(lead.t, dir) - lead.t;
+		const set = new Set(ids);
 		ids.forEach((id) => { const ev = evById(id); ev.t += d; if (ev.end != null) ev.end += d; ensureRange(ev); });
+		keepPins(set, d);
 		commit(before);
+	}
+	/** Cards pinned to a card that moved with them keep their gap: without this they'd follow the anchor a second time. */
+	function keepPins(moved: Set<string>, d: number) {
+		moved.forEach((id) => { const ev = evById(id); if (ev && ev.rel && moved.has(ev.rel.to) && ev.rel.at != null) ev.rel.at += d; });
 	}
 	let clip: EvraEvent[] = null, lastPointerT: number = null;
 	const copyText = (t: string) => { navigator.clipboard.writeText(t).catch(() => { /* the card copy still works inside Evra */ }); };
@@ -1153,7 +1161,7 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 		const ev = evById(sel);
 		if (!ev) return;
 		const before = snapshot();
-		if (ev.end != null) { delete ev.end; delete ev.os; delete ev.oe; } else { ev.end = ev.t + dpy(); ensureRange(ev); }
+		if (ev.end != null) { delete ev.end; delete ev.os; delete ev.oe; } else { ev.end = yearLater(ev.t); ensureRange(ev); }
 		commit(before);
 	}
 
@@ -1262,10 +1270,15 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 		});
 	}
 	function clearFilter() { Object.assign(FLT, { q: '', era: '', side: '', link: '' }); FLT.colors.clear(); FLT.tags.clear(); invalidate(); renderFilterPill(); }
+	let pillKey = '', bundleKey = '';
 	function renderFilterPill() {
 		const el = $('fpill');
 		el.hidden = !filterOn();
 		if (el.hidden) return;
+		// rebuilt only when the filter or the timeline changes: rebuilding every frame cost time and swallowed clicks mid-animation
+		const key = [contentEpoch, FLT.q, FLT.era, FLT.side, FLT.link, FLT.mode, [...FLT.colors].join(), [...FLT.tags].join()].join('|');
+		if (key === pillKey) return;
+		pillKey = key;
 		const n = S.events.filter(matches).length;
 		setHTML(el, `<span>${FLT.mode === 'hide' ? 'Showing' : 'Highlighting'} ${n} of ${S.events.length}</span><button data-m="edit">Edit</button><button data-m="clear">Clear</button>`);
 	}
@@ -1352,7 +1365,7 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 			const ev = evById(id), ce = cardEls.get(id);
 			if (!ev) return;
 			invalidate();
-			const together = selIds().length > 1 ? selIds().map((x) => ({ id: x, t: evById(x).t, end: evById(x).end })) : null;
+			const together = selIds().length > 1 ? selIds().map((x) => ({ id: x, t: evById(x).t, end: evById(x).end, relAt: evById(x).rel?.at })) : null;
 			const el0 = elLeftTop(ce, L);
 			drag = { type: 'card', id, together, start: L, el0, free: { ...el0 }, before: null, orig: { t: ev.t, end: ev.end, side: ev.side }, moved: false, armed: e.pointerType !== 'touch' };
 			if (!drag.armed) drag.timer = later(() => { if (drag && drag.type === 'card' && !drag.moved) { drag.armed = true; if (ce) ce.addClass('dragging'); } }, 260);
@@ -1419,7 +1432,14 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 			const ev = evById(drag.id), o = drag.orig, nt = snap(o.t + dt, fine);
 			ev.t = nt;
 			if (o.end != null) ev.end = nt + (o.end - o.t);
-			if (drag.together) drag.together.forEach((m) => { if (m.id === drag.id) return; const x = evById(m.id); x.t = m.t + (nt - o.t); if (m.end != null) x.end = m.end + (nt - o.t); }); // the whole selection moves as one
+			if (drag.together) { // the whole selection moves as one, and pins within it keep their gaps
+				const set = new Set(drag.together.map((m) => m.id));
+				drag.together.forEach((m) => {
+					const x = evById(m.id);
+					if (m.id !== drag.id) { x.t = m.t + (nt - o.t); if (m.end != null) x.end = m.end + (nt - o.t); }
+					if (x.rel && set.has(x.rel.to) && m.relAt != null) x.rel.at = m.relAt + (nt - o.t);
+				});
+			}
 			if (Math.abs(L.c) > 26) ev.side = L.c < 0 ? 'a' : 'b';
 			drag.free = { x: drag.el0.x + L.x - drag.start.x, y: drag.el0.y + L.y - drag.start.y };
 			showTip(L, ev.end != null ? fmtRange(ev) : fmt(ev.t)); invalidate();
@@ -1607,7 +1627,7 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 		lastPointerT = t;
 		openPop(L, `<div class="evra-menu"><div class="meta">${esc(fmt(t))}</div><button data-m="add">Add an event here</button><button data-m="addspan">Add a span here</button><button data-m="addera">Add an era here</button><button data-m="now">Set “now” here</button>${clip ? '<button data-m="paste">Paste here <kbd>Ctrl V</kbd></button>' : ''}${inside.length ? '<hr>' : ''}${inside.map((x) => `<div class="erow"><button data-fit="${x.id}"><i style="--cc:${col(x.color)}"></i>Fit “${esc(x.name)}” to screen</button><button class="ibtn" data-era="${x.id}" title="Edit era" aria-label="Edit ${esc(x.name)}">${ICON.pen}</button></div>`).join('')}<hr><button data-m="fit">Fit everything <kbd>F</kbd></button></div>`, (p) => {
 			qa(p, '[data-fit]').forEach((b) => (b.onclick = () => { closePop(); const x = eraById(b.dataset.fit); fitRange(x.start, x.end); }));
-			const side: Side = Math.abs(L.c) < 14 ? 'b' : L.c < 0 ? 'a' : 'b', len = Math.max(dpy(), snap((G.L * 0.15) / V.scale));
+			const side: Side = Math.abs(L.c) < 14 ? 'b' : L.c < 0 ? 'a' : 'b', len = Math.max(Math.round(dpy()), snap((G.L * 0.15) / V.scale));
 			q1(p, '[data-m=addspan]').onclick = () => {
 				closePop();
 				const before = snapshot(), ev: EvraEvent = { id: uid(), t, end: t + len, side, title: 'New span', text: '', color: null, file: null };
@@ -2366,7 +2386,7 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 				void host.createNote((ev.title || 'Untitled').trim(), ev.text || '').then((link) => { if (!link) return; act(() => { ev.file = link; })(); toast(`Created ${link}.md`); });
 			});
 			on('link', () => { closePop(); host.pickNote((link) => act(() => { ev.file = link; })()); });
-			on('span', () => { closePop(); act(() => { if (span) { delete ev.end; delete ev.os; delete ev.oe; } else { ev.end = ev.t + dpy(); ensureRange(ev); } })(); });
+			on('span', () => { closePop(); act(() => { if (span) { delete ev.end; delete ev.os; delete ev.oe; } else { ev.end = yearLater(ev.t); ensureRange(ev); } })(); });
 			on('os', () => { closePop(); act(() => { if (ev.os) delete ev.os; else ev.os = true; })(); });
 			on('oe', () => { closePop(); act(() => { if (ev.oe) delete ev.oe; else ev.oe = true; })(); });
 			on('flip', () => { closePop(); act(() => { ev.side = ev.side === 'a' ? 'b' : 'a'; })(); });
