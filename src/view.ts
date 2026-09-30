@@ -21,7 +21,8 @@ export class EvraView extends TextFileView {
 	private redoBtn: HTMLElement;
 	private syncT = 0;
 	private ownWrites = new Map<string, ReturnType<typeof desiredProps>>();
-	private base: string | null = null; // the file as last loaded or saved, to tell unsaved changes from outside ones
+	private base: string | null = null;
+	private stranded: { base: string; ours: string } | null = null; // unsaved changes while the file on disk can't be read // the file as last loaded or saved, to tell unsaved changes from outside ones
 
 	constructor(leaf: WorkspaceLeaf, private plugin: EvraPlugin) {
 		super(leaf);
@@ -61,13 +62,32 @@ export class EvraView extends TextFileView {
 				doc = normDoc(JSON.parse(data), name);
 				this.broken = null;
 			} catch {
+				// Unsaved changes here are kept aside (never written over the broken file) and merged into the next valid version
+				if (clear) this.stranded = null;
+				else if (this.timeline && this.base != null) {
+					this.timeline.flush();
+					const ours = JSON.stringify({ format: 'evra', version: 1, ...this.timeline.getDoc() }); // as saved, so key order matches
+					let same = false;
+					try { same = JSON.stringify({ format: 'evra', version: 1, ...normDoc(JSON.parse(this.base), name) }) === ours; } catch { /* base unreadable */ }
+					if (!same) this.stranded = { base: this.base, ours };
+				}
 				this.broken = data;
 				this.showError();
 				return;
 			}
 		}
-		const base = this.base;
+		if (clear) this.stranded = null;
+		const stranded = this.stranded;
+		this.stranded = null;
+		const base = stranded ? stranded.base : this.base;
 		this.base = data;
+		if (stranded) {
+			try {
+				doc = normDoc(mergeDocs(normDoc(JSON.parse(base), name), JSON.parse(stranded.ours), doc), name);
+				this.requestSave();
+				new Notice(`“${name}” can be read again. The changes you hadn’t saved were kept.`);
+			} catch { /* base unreadable: take the new version */ }
+		}
 		if (!this.timeline || clear) { this.mount(doc); this.seedWanted(doc); return; }
 		// Changed outside (another editor, a sync service) while this copy had unsaved changes: Obsidian would drop them, so
 		// merge the two, card by card
@@ -116,6 +136,7 @@ export class EvraView extends TextFileView {
 		this.contentEl.addClass('evra-error');
 		this.contentEl.createEl('p', { text: 'This timeline file couldn’t be read. It isn’t valid JSON, so it has been left untouched.' });
 		this.contentEl.createEl('p', { text: 'Open it in another editor to fix it, or restore it from a backup or the file recovery core plugin.' });
+		if (this.stranded) this.contentEl.createEl('p', { text: 'Changes you hadn’t saved are kept, and come back when the file can be read again.' });
 	}
 
 	/** Other panes showing the same file get each change at once, so neither drops the other's unsaved edits when the

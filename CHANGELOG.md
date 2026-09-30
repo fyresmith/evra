@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.8.26 (beta)
+
+- If the timeline's file is briefly broken on disk (for example mid-sync), unsaved edits are held and merged into the next valid version.
+
 ## 0.8.25 (beta)
 
 - Merging an outside edit keeps months or colors you reordered but hadn't saved yet.
