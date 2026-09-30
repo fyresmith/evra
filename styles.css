@@ -2045,6 +2045,12 @@
 	max-width:none;
 	max-height:calc(220 * var(--evra-px))
 }
+/* the ruler's labels stand upright too, so the ruler takes a thin strip (RULER_N) */
+.evra-root.evra-view.narrow .ruler.rv:not(.r2) span {
+	writing-mode:vertical-rl;
+	left:3px;
+	padding:6px 2px
+}
 .evra-root.evra-view.thin .minimap.mh {
 	top:46px;
 	left:16px

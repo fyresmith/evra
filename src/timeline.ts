@@ -89,7 +89,7 @@ const FMT_FIELDS: [string, [keyof EvraDoc['cal']['fmt'], string, string][]][] = 
 	['Spans', [['range', 'Start to end', 'range'], ['ongoing', 'Word for an ongoing span', 'ongoing']]],
 	['Approximate dates', [['circa', 'Circa (use {date})', 'circa']]],
 ];
-const GUT = 22, GAPC = 14, LANE = 6, RULER = 64, NARROW = 520; // gutter beside the line, gap between stacked cards, spacing of span threads, width of the year ruler
+const GUT = 22, GAPC = 14, LANE = 6, RULER = 64, RULER_N = 24, NARROW = 520; // gutter beside the line, gap between stacked cards, spacing of span threads, width of the year ruler (its labels stand upright on a narrow timeline)
 const BASE_H = 55, LINE_H = 18.1, GROUP_H = 112; // card = title + date (+ description lines)
 const MAXL = 6; // past this many overlapping spans, the rest share one bundled lane
 const laneC = (i: number) => 12 + i * LANE;
@@ -526,7 +526,7 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 		const t0 = V.v0, t1 = V.v0 + G.L / V.scale, cnt = { a: 0, b: 0 };
 		EV_LIST.forEach((e) => { if ((e.end != null ? e.end : e.t) >= t0 && e.t <= t1) cnt[sideOf(e)]++; });
 		for (const [mode, maxCols] of limits) {
-			const cr = G.vert ? clamp(fit, narrow ? 110 : 150, mode === 'full' ? w : Math.min(w, 210)) : mode === 'full' ? BASE_H : 38;
+			const cr = G.vert ? clamp(fit, narrow ? 60 : 150, mode === 'full' ? w : Math.min(w, 210)) : mode === 'full' ? BASE_H : 38;
 			const minLen = G.vert ? (mode === 'full' ? BASE_H : 38) : mode === 'full' ? 220 : 150;
 			if (Math.max(cnt.a, cnt.b) * (minLen + GAPC) > (G.L + minLen) * maxCols * 1.5) continue;
 			const r = pack(mode, cr);
@@ -538,13 +538,14 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 	/* A phone-width vertical timeline has no room for cards on both sides: every card goes right of a line that sits
 	   just past the ruler and era rail, and stops short of the zoom controls. Only the display changes; each card keeps its side. */
 	let narrow = false;
+	const rulerW = () => (narrow ? RULER_N : RULER);
 	const sideOf = (e: EvraEvent): Side => (narrow ? 'b' : e.side);
 	/** Where the line sits across the view (before scrolling across), and the room kept free on the far side. */
 	function crossHome(): [number, number] {
 		if (!narrow && G.vert) return [G.C / 2, 16];
 		const dep = eraDepths(), maxDep = Math.max(0, ...S.eras.map((e) => dep[e.id])), railW = maxDep ? maxDep * 7 + 4 : 0;
 		// era labels stand upright in a column beside the rail, and the line comes after them
-		if (narrow) return [RULER + railW + (S.eras.length ? 6 + eraLabelH({ id: '', name: '', s: 0, sub: true, lvl: 2 }) : 0) + 10, 62];
+		if (narrow) return [RULER_N + railW + (S.eras.length ? 6 + eraLabelH({ id: '', name: '', s: 0, sub: true, lvl: 2 }) : 0) + 10, 62];
 		// across a horizontal timeline, the ruler, era rail and a row of era labels take a band along the bottom and the breadcrumb
 		// the top: the line sits midway between, so cards below it start clear of the ruler, and can scroll clear of the band
 		const band = 70 + G.inb + railW;
@@ -705,7 +706,7 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 		for (const t of majors) {
 			const s = ts(t);
 			out.push(seg(s, -5, s, 5, 'stroke:var(--evra-faint);stroke-width:1.2'));
-			guides.push(G.vert ? svgEl('line', { x1: RULER, y1: rd(s), x2: G.W, y2: rd(s) }, 'stroke:var(--evra-guide);stroke-width:1') : svgEl('line', { x1: rd(s), y1: 0, x2: rd(s), y2: G.H - 26 - G.inb }, 'stroke:var(--evra-guide);stroke-width:1'));
+			guides.push(G.vert ? svgEl('line', { x1: rulerW(), y1: rd(s), x2: G.W, y2: rd(s) }, 'stroke:var(--evra-guide);stroke-width:1') : svgEl('line', { x1: rd(s), y1: 0, x2: rd(s), y2: G.H - 26 - G.inb }, 'stroke:var(--evra-guide);stroke-width:1'));
 			F.ticks.push({ s, label: E.tickLabel(t) });
 		}
 		out.splice(gridAt, 0, ...guides);
@@ -744,7 +745,7 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 			if (!vis(a, b)) return;
 			const lo = cS(Math.min(a, b)), hi = cS(Math.max(a, b)), k = dep[e.id] - 1;
 			const bar = G.vert
-				? svgEl('rect', { 'data-era': e.id, x: RULER + 3 + k * 7, y: rd(lo + 1), width: 5, height: rd(Math.max(2, hi - lo - 2)), rx: 2.5 }, `fill:${col(e.color)};opacity:.75;cursor:pointer`)
+				? svgEl('rect', { 'data-era': e.id, x: rulerW() + 3 + k * 7, y: rd(lo + 1), width: 5, height: rd(Math.max(2, hi - lo - 2)), rx: 2.5 }, `fill:${col(e.color)};opacity:.75;cursor:pointer`)
 				: svgEl('rect', { 'data-era': e.id, x: rd(lo + 1), y: G.H - 34 - G.inb - k * 7, width: rd(Math.max(2, hi - lo - 2)), height: 5, rx: 2.5 }, `fill:${col(e.color)};opacity:.75;cursor:pointer`);
 			const title = svgEl('title', {});
 			title.textContent = e.name;
@@ -1072,7 +1073,7 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 			el.dataset.era = t.id;
 			if (el.textContent !== t.name) el.textContent = t.name;
 			const d = G.rev ? -1 : 1;
-			if (G.vert) el.setCssStyles({ left: RULER + 6 + (F.railW || 0) + 'px', top: rd(t.s + d * (6 + t.lead) - (G.rev ? labAlong(t) : 0)) + 'px', bottom: '', transform: '' });
+			if (G.vert) el.setCssStyles({ left: rulerW() + 6 + (F.railW || 0) + 'px', top: rd(t.s + d * (6 + t.lead) - (G.rev ? labAlong(t) : 0)) + 'px', bottom: '', transform: '' });
 			else el.setCssStyles({ left: rd(t.s + (G.rev ? -6 : 6)) + 'px', transform: G.rev ? 'translateX(-100%)' : '', top: '', bottom: 44 + G.inb + (F.railW || 0) + (t.row || 0) * 26 + 'px' });
 		});
 	}
@@ -1135,7 +1136,7 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 		// the hint is for getting started: it steps aside for the ruler and the era rail, and goes once there's a handful of events
 		const hint = $('hint');
 		hint.hidden = S.events.length >= 5;
-		if (!hint.hidden) hint.setCssStyles({ bottom: G.vert ? '' : 42 + G.inb + (F.railW || 0) + 'px', left: G.vert ? RULER + (F.railW || 0) + 12 + 'px' : '' });
+		if (!hint.hidden) hint.setCssStyles({ bottom: G.vert ? '' : 42 + G.inb + (F.railW || 0) + 'px', left: G.vert ? rulerW() + (F.railW || 0) + 12 + 'px' : '' });
 		renderTags();
 		const tc = tAt(G.L / 2), path = S.eras.filter((e) => e.start <= tc && e.end > tc).sort((a, b) => dep[a.id] - dep[b.id]);
 		const key = path.map((e) => e.id + e.name).join('|');

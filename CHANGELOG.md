@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.8.31 (beta)
+
+- On very narrow screens the ruler takes less room and cards shrink to fit, staying clear of the zoom controls.
+
 ## 0.8.30 (beta)
 
 - On narrow vertical timelines, era labels stand upright in their own column instead of covering the line and cards.
