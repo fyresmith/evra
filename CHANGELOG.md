@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.7.20 (beta)
+
+- Going to a date outside the range widens the range (one undo step) so the date is on screen.
+
 ## 0.7.19 (beta)
 
 - “Add an era here” and dragging out a new era near the end of the range widen the range to hold the era.

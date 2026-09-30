@@ -2178,7 +2178,11 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 	   ">" in search runs commands; they are also in Obsidian's command palette. */
 	let flashT = 0, flash: { t: number } = null;
 	function flashAt(t: number) { flash = { t }; win().clearTimeout(flashT); flashT = later(() => { flash = null; invalidate(); }, 1800); invalidate(); }
-	function goToDate(t: number) { animView(t, V.scale, () => flashAt(t)); }
+	function goToDate(t: number) {
+		// a date past the range widens it (one undo step), or the view would stop at the edge with the date off screen
+		if (t < yearStartT(S.range[0]) || t > yearStartT(S.range[1])) { const before = snapshot(); ensureRange({ t }); commit(before); }
+		animView(t, V.scale, () => flashAt(t));
+	}
 	function zoomToSelection() {
 		const ids = selIds();
 		if (!ids.length) return;
