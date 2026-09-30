@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.8.6 (beta)
+
+- Right-clicking another card while editing saves the edit and leaves focus in the new menu.
+
 ## 0.8.5 (beta)
 
 - Enter on a focused toolbar or toast button presses it instead of editing the selected card.

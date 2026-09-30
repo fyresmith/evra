@@ -1824,7 +1824,10 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 			sigs.delete(el); const fo = focusOut.get(el); if (fo) el.removeEventListener('focusout', fo); el.removeClass('editing');
 			if (el === peekEl) setHTML(el, cardHTML(ev, 'full'));
 		}
-		stage.focus({ preventScroll: true }); invalidate();
+		// back to the timeline only if the focus was in the card or went nowhere: a menu or card that took it keeps it
+		const f = doc().activeElement;
+		if (!f || f === doc().body || (el && el.contains(f)) || !f.isConnected) stage.focus({ preventScroll: true });
+		invalidate();
 	}
 	function deleteEvent(id: string) { const before = snapshot(); S.events = S.events.filter((e) => e.id !== id); if (sel === id) sel = null; commit(before); keepFocus(); toast('Deleted.', true); }
 	/** A removed card may have had the focus: hand it back to the timeline so shortcuts (like Ctrl+Z) keep working. */
