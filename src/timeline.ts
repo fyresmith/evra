@@ -1048,7 +1048,10 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 	}
 	function renderOverlay(dep: Record<string, number>, R0: number, R1: number) {
 		renderNow(); renderMinimap(); renderRuler(); renderEraLabels(); renderBundles(); renderFilterPill();
-		$('hint').setCssStyles({ bottom: G.vert ? '' : 42 + G.inb + (F.railW || 0) + 'px' }); // clear the ruler and the era rail along the bottom
+		// the hint is for getting started: it steps aside for the ruler and the era rail, and goes once there's a handful of events
+		const hint = $('hint');
+		hint.hidden = S.events.length >= 5;
+		if (!hint.hidden) hint.setCssStyles({ bottom: G.vert ? '' : 42 + G.inb + (F.railW || 0) + 'px', left: G.vert ? RULER + (F.railW || 0) + 12 + 'px' : '' });
 		renderTags();
 		const tc = tAt(G.L / 2), path = S.eras.filter((e) => e.start <= tc && e.end > tc).sort((a, b) => dep[a.id] - dep[b.id]);
 		const key = path.map((e) => e.id + e.name).join('|');
@@ -1332,7 +1335,7 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 				if (!g) return;
 				const el0 = elLeftTop(ce, L);
 				sel = null; invalidate();
-				drag = { type: 'group', id, year: g.year, members: g.members.map((m) => ({ id: m.id, t: m.t })), start: L, el0, free: { ...el0 }, before: snapshot(), moved: false, armed: e.pointerType !== 'touch' };
+				drag = { type: 'group', id, year: g.year, members: g.members.map((m) => ({ id: m.id, t: m.t })), start: L, el0, free: { ...el0 }, before: null, moved: false, armed: e.pointerType !== 'touch' };
 				if (!drag.armed) drag.timer = later(() => { if (drag && drag.type === 'group' && !drag.moved) drag.armed = true; }, 260);
 				capture(e.pointerId);
 				return;
@@ -1349,7 +1352,7 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 			invalidate();
 			const together = selIds().length > 1 ? selIds().map((x) => ({ id: x, t: evById(x).t, end: evById(x).end })) : null;
 			const el0 = elLeftTop(ce, L);
-			drag = { type: 'card', id, together, start: L, el0, free: { ...el0 }, before: snapshot(), orig: { t: ev.t, end: ev.end, side: ev.side }, moved: false, armed: e.pointerType !== 'touch' };
+			drag = { type: 'card', id, together, start: L, el0, free: { ...el0 }, before: null, orig: { t: ev.t, end: ev.end, side: ev.side }, moved: false, armed: e.pointerType !== 'touch' };
 			if (!drag.armed) drag.timer = later(() => { if (drag && drag.type === 'card' && !drag.moved) { drag.armed = true; if (ce) ce.addClass('dragging'); } }, 260);
 			capture(e.pointerId);
 			return;
@@ -1360,7 +1363,7 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 		else if (d) {
 			const ev = evById(d.id), both = d.which !== 'point' && F.dots.filter((x) => x.id === d.id && Math.abs(x.s - L.s) < 9).length > 1;
 			sel = d.id;
-			drag = { type: 'dot', id: d.id, which: both ? 'auto' : d.which, start: L, before: snapshot(), o: { t: ev.t, end: ev.end, os: ev.os, oe: ev.oe }, moved: false };
+			drag = { type: 'dot', id: d.id, which: both ? 'auto' : d.which, start: L, before: null, o: { t: ev.t, end: ev.end, os: ev.os, oe: ev.oe }, moved: false };
 		} else if (Math.abs(L.c) < 10) {
 			const b = hitBound(L, e.altKey);
 			drag = b ? startBound(b, e.altKey, L) : { type: 'select', a: snap(tAt(L.s)), b: null, start: L, moved: false };
@@ -1390,6 +1393,8 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 		if (!drag.moved && dist < 4) return;
 		if ((drag.type === 'card' || drag.type === 'group') && !drag.moved && drag.armed) hidePeek();
 		if ((drag.type === 'card' || drag.type === 'group') && !drag.armed) { win().clearTimeout(drag.timer); drag = { type: 'pan', start: drag.start, v0: V.v0, x0: V.x, moved: true }; }
+		// the undo snapshot is taken when a drag really starts, not on every click (it copies the whole timeline)
+		if (!drag.moved && drag.before == null && /^(card|group|dot|bound)$/.test(drag.type)) drag.before = snapshot();
 		drag.moved = true;
 		const dt = (G.rev ? -ds : ds) / V.scale, fine = e.altKey;
 		if (drag.type === 'marquee') {
@@ -1527,7 +1532,7 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 			if (group2.length) hi = Math.min(hi, ...group2.map((h) => h.end - 1), ...kidsOf(g2).map((k) => k.start));
 			else { const next = S.eras.filter((x) => x !== e && x.parent === e.parent && x.start >= bt).sort((p, q) => p.start - q.start)[0]; if (next) hi = Math.min(hi, next.start); }
 		}
-		return { type: 'bound', which, other, bt, lo, hi, group: [...gs], group2: [...g2], before: snapshot(), start: L, moved: false };
+		return { type: 'bound', which, other, bt, lo, hi, group: [...gs], group2: [...g2], before: null, start: L, moved: false };
 	}
 
 	stage.addEventListener('wheel', (e) => {

@@ -496,9 +496,9 @@ test('dropping a note from the file explorer adds a linked card', async (p, h, t
 });
 test('editing a linked note updates its card', async (p, h, t) => {
 	await h.open();
-	await p.ev(`app.vault.modify(app.vault.getAbstractFileByPath('Pale Court.md'), '# Pale Court\\nA brand new description of the court.').then(() => 1)`); await p.sleep(900);
+	await p.ev(`app.vault.modify(app.vault.getAbstractFileByPath('Queen Isolde.md'), 'A brand new description of the queen.').then(() => 1)`); await p.sleep(900);
 	await p.ev(`${h.tl}.run('fit-all')`); await p.sleep(600);
-	t.ok(await p.ev(`[...document.querySelectorAll('${A} .evra-card')].some(c => /brand new description/.test(c.textContent))`) || true, 'card text');
+	t.ok(await p.ev(`[...document.querySelectorAll('.evra-root .evra-card')].some(c => /brand new description/.test(c.textContent))`), 'the card shows the new text');
 });
 test('the evra code block renders in reading view and opens the timeline', async (p, h, t) => {
 	await p.ev(`app.workspace.getLeaf(false).setViewState({type: 'markdown', state: {file: 'Veld.md', mode: 'preview'}}).then(() => 1)`); await p.sleep(1200);
@@ -543,7 +543,7 @@ test('two panes on one timeline stay in step', async (p, h, t) => {
 	await p.ev(`(() => { const t = app.workspace.activeLeaf.view.timeline; const d = t.getDoc(); d.events[0].title = 'Changed here'; t.setDoc(JSON.parse(JSON.stringify(d))); app.workspace.activeLeaf.view.requestSave(); return 1; })()`);
 	await p.ev(`app.workspace.activeLeaf.view.save().then(() => 1)`); await p.sleep(1200);
 	const other = await p.ev(`app.workspace.getLeavesOfType('evra').map(l => l.view.timeline.getDoc().events[0].title)`);
-	t.ok(other.every((x) => x === 'Changed here') || true, 'both panes: ' + other.join(' / '));
+	t.ok(other.length === 2 && other.every((x) => x === 'Changed here'), 'both panes show the change: ' + other.join(' / '));
 });
 test('opening and closing timelines many times leaves nothing behind', async (p, h, t) => {
 	for (let i = 0; i < 8; i++) { await h.open(); await p.ev(`app.workspace.iterateRootLeaves(l => l.detach())`); await p.sleep(100); }

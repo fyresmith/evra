@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.6.1 (beta)
+
+- The getting-started hint no longer covers the year ruler, and goes away once a timeline has five events.
+- Clicking a card or dot no longer copies the whole timeline for undo; that now happens only when a drag really starts (noticeable on very large timelines).
+- The end-to-end runner loads every `tests/e2e/specs*.mjs` file, or just the ones passed with `--specs`.
+
 ## 0.6.0 (beta)
 
 - An end-to-end test suite that drives Evra inside a real, headless Obsidian: opening files, adding and dragging cards, menus, eras, search, filters, saved views, every settings tab, note sync, renames, drag and drop, embeds and every command (`npm run e2e`).

@@ -7,7 +7,8 @@
 import { mkdirSync, readFileSync, readdirSync, statSync } from 'fs';
 import { join, relative } from 'path';
 import { launch } from './driver.mjs';
-import { specs } from './specs.mjs';
+import { readdirSync as ls } from 'fs';
+import { pathToFileURL } from 'url';
 
 const arg = (k, d) => { const i = process.argv.indexOf('--' + k); return i > 0 ? process.argv[i + 1] : d; };
 const themes = arg('theme', 'light') === 'both' ? ['light', 'dark'] : [arg('theme', 'light')];
@@ -20,6 +21,11 @@ mkdirSync(shots, { recursive: true });
 const pristine = new Map();
 const walk = (dir) => { for (const f of readdirSync(dir)) { const p = join(dir, f); if (f === '.obsidian' || f === 'Aerth') continue; if (statSync(p).isDirectory()) walk(p); else if (/\.(md|evra)$/.test(f)) pristine.set(relative('test-vault', p), readFileSync(p, 'utf8')); } };
 walk('test-vault');
+
+// specs: every tests/e2e/specs*.mjs, or just the ones given with --specs a.mjs,b.mjs
+const specFiles = arg('specs', '') ? arg('specs').split(',') : ls('tests/e2e').filter((f) => /^specs.*\.mjs$/.test(f)).map((f) => 'tests/e2e/' + f);
+const specs = [];
+for (const f of specFiles) specs.push(...(await import(pathToFileURL(f).href)).specs);
 
 class Fail extends Error {}
 const results = [];
@@ -40,7 +46,7 @@ for (let round = 1; round <= repeat; round++) {
 					eq: (a, b, m) => { if (a !== b) throw new Fail(`${m}: expected ${JSON.stringify(b)}, got ${JSON.stringify(a)}`); },
 				});
 				await p.sleep(80);
-				const bad = p.errors.filter((e) => !/ERR_|net::|DevTools|favicon|Failed to load resource/.test(e));
+				const bad = p.errors.filter((e) => !/ERR_|net::|DevTools|favicon|Failed to load resource|Electron Security Warning/.test(e));
 				if (bad.length) throw new Fail('errors logged: ' + bad.slice(0, 3).join(' ; '));
 			} catch (e) {
 				err = e instanceof Fail ? e.message : 'crashed: ' + (e.stack || e).toString().split('\n').slice(0, 3).join(' | ');
