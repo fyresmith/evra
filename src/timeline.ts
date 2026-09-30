@@ -2563,12 +2563,14 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 		};
 	}
 	function openCardMenu(ev: EvraEvent, at: At) {
+		// one-sided on a phone, there's no other side to see: no Move to other side there
+		const flipBtn = narrow ? '' : '<button data-m="flip">Move to other side</button>';
 		const span = ev.end != null, many = selIds().length > 1 && selIds().includes(ev.id) ? selIds().map(evById) : null;
 		if (many) {
-			openPop(at, `<div class="evra-menu" data-selmenu><div class="meta">${many.length} cards selected</div>${swatchRow(null)}<button data-m="flip">Move to other side</button><button data-m="copy">Copy <kbd>Ctrl C</kbd></button><button data-m="dup">Duplicate <kbd>Ctrl D</kbd></button><button data-m="zoom">Zoom to them <kbd>Z</kbd></button><hr><button data-m="del" class="danger">Delete ${many.length} cards <kbd>⌫</kbd></button></div>`, (p) => {
+			openPop(at, `<div class="evra-menu" data-selmenu><div class="meta">${many.length} cards selected</div>${swatchRow(null)}${flipBtn}<button data-m="copy">Copy <kbd>Ctrl C</kbd></button><button data-m="dup">Duplicate <kbd>Ctrl D</kbd></button><button data-m="zoom">Zoom to them <kbd>Z</kbd></button><hr><button data-m="del" class="danger">Delete ${many.length} cards <kbd>⌫</kbd></button></div>`, (p) => {
 				bindSwatches(p, (id) => many.forEach((x) => (x.color = id)), true);
 				const on = (m: string, fn: () => void) => { q1(p, `[data-m=${m}]`).onclick = () => { closePop(); fn(); }; };
-				on('flip', () => { const b = snapshot(); many.forEach((x) => (x.side = x.side === 'a' ? 'b' : 'a')); commit(b); });
+				if (!narrow) on('flip', () => { const b = snapshot(); many.forEach((x) => (x.side = x.side === 'a' ? 'b' : 'a')); commit(b); });
 				on('copy', copySel); on('dup', duplicateSel); on('zoom', zoomToSelection); on('del', deleteSel);
 			});
 			return;
@@ -2587,7 +2589,7 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 			${span ? `<button data-m="life">Someone’s life <span>${ev.life ? '✓' : ''}</span></button>` : `<div class="mi"><span>Approximate</span><select data-m="circa" aria-label="How approximate">${circaOpts.map(([v, l]) => `<option value="${Math.round(v)}" ${Math.round(v) === Math.round(ev.circa || 0) ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select></div>`}
 			${ev.rel ? `<div class="meta">↳ ${esc(relText(ev))}</div><button data-m="unpin">Unpin from ${esc(evById(ev.rel.to) ? titleOf(evById(ev.rel.to)) : '')}</button>` : `<div class="mi"><span>Pin relative to</span><select data-m="pin" aria-label="Pin relative to"><option value="">Choose…</option>${pinTo.map((x) => `<option value="${x.id}">${esc(titleOf(x))}</option>${x.end != null ? `<option value="${x.id}:end">${esc(titleOf(x))} (its end)</option>` : ''}`).join('')}</select></div>`}
 			${lives().filter((x) => x.id !== ev.id).length ? `<div class="dl">People involved</div><div class="ppl">${lives().filter((x) => x.id !== ev.id).map((x) => `<label><input type="checkbox" data-person="${x.id}" ${(ev.people || []).includes(x.id) ? 'checked' : ''}> ${esc(titleOf(x))}</label>`).join('')}</div>` : ''}
-			<button data-m="flip">Move to other side</button>
+			${flipBtn}
 			<button data-m="dup">Duplicate</button>
 			<hr><button data-m="del" class="danger">Delete <kbd>⌫</kbd></button></div>`, (p) => {
 			const act = (fn: () => void) => () => { const before = snapshot(); fn(); commit(before); };
@@ -2609,7 +2611,7 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 			on('span', () => { closePop(); act(() => { if (span) { delete ev.end; delete ev.os; delete ev.oe; delete ev.life; } else { ev.end = yearLater(ev.t); delete ev.circa; ensureRange(ev); } })(); });
 			on('os', () => { closePop(); act(() => { if (ev.os) delete ev.os; else ev.os = true; })(); });
 			on('oe', () => { closePop(); act(() => { if (ev.oe) delete ev.oe; else ev.oe = true; })(); });
-			on('flip', () => { closePop(); act(() => { ev.side = ev.side === 'a' ? 'b' : 'a'; })(); });
+			if (!narrow) on('flip', () => { closePop(); act(() => { ev.side = ev.side === 'a' ? 'b' : 'a'; })(); });
 			on('life', () => { closePop(); act(() => { if (ev.life) delete ev.life; else ev.life = true; })(); });
 			on('unpin', () => { closePop(); act(() => { delete ev.rel; })(); });
 			const cz = q1<HTMLSelectElement>(p, '[data-m=circa]');
@@ -2838,7 +2840,8 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 		const along: Record<string, number> = G.vert ? { ArrowDown: 1, ArrowUp: -1 } : { ArrowRight: 1, ArrowLeft: -1 };
 		const across: Record<string, Side> = G.vert ? { ArrowLeft: 'a', ArrowRight: 'b' } : { ArrowUp: 'a', ArrowDown: 'b' };
 		if (along[e.key]) { done(); nudgeSel(along[e.key] * (G.rev ? -1 : 1), e.altKey); }
-		else if (across[e.key]) { done(); const before = snapshot(); selIds().forEach((id) => (evById(id).side = across[e.key])); commit(before); }
+		// across: not on a one-sided phone layout, where the side can't be seen
+		else if (across[e.key] && !narrow) { done(); const before = snapshot(); selIds().forEach((id) => (evById(id).side = across[e.key])); commit(before); }
 	};
 	root.addEventListener('keydown', onKey);
 	cleanups.push(() => root.removeEventListener('keydown', onKey));

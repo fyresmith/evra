@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.8.32 (beta)
+
+- On the one-sided narrow layout, the across-the-line arrow keys and “Move to other side” are left out, since they'd change nothing visible.
+
 ## 0.8.31 (beta)
 
 - On very narrow screens the ruler takes less room and cards shrink to fit, staying clear of the zoom controls.
