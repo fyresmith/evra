@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.8.7 (beta)
+
+- Escape in the middle of a drag puts everything back, with no undo step.
+
 ## 0.8.6 (beta)
 
 - Right-clicking another card while editing saves the edit and leaves focus in the new menu.

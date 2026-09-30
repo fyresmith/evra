@@ -1568,6 +1568,13 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 		else if (d.type === 'pan') { if (!d.moved) { if (d.era) openEraEditor(d.era, d.start); else sel = d.thread || null; } saveSoon(); }
 		invalidate();
 	}
+	/** Escape mid-drag: everything goes back to where it was, with no undo step; the button's release then does nothing. */
+	function cancelDrag() {
+		const d = drag;
+		drag = null; win().clearTimeout(d.timer); tipEl.hidden = true; marqueeEl.hidden = true; stage.setCssStyles({ cursor: '' });
+		if (d.before != null) restore(d.before);
+		invalidate();
+	}
 	stage.addEventListener('pointerup', endPointer);
 	stage.addEventListener('pointercancel', endPointer);
 	stage.addEventListener('pointerover', (e) => {
@@ -2746,6 +2753,7 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 		if (typing && !texty && mod && (k === 'z' || k === 'y')) { done(); if (k === 'y' || e.shiftKey) redoF(); else undo(); return; }
 		if (typing && !texty && e.key === 'Escape' && !sheet.hidden) { e.stopPropagation(); closeSheet(); return; }
 		if (typing) return;
+		if (drag && drag.moved && e.key === 'Escape' && drag.type !== 'pinch') { done(); cancelDrag(); return; }
 		if (drag && drag.type !== 'pan' && drag.moved && !/^(Alt|Shift|Escape)$/.test(e.key)) { done(); return; } // keys mid-drag would edit what the drag is about to commit
 		if (mod && k === 'z') { done(); if (e.shiftKey) redoF(); else undo(); return; }
 		if (mod && k === 'y') { done(); redoF(); return; }
