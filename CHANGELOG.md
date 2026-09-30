@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.8.20 (beta)
+
+- E edits the selected card again after a toolbar button was clicked (Enter on a focused button still presses it).
+
 ## 0.8.19 (beta)
 
 - 15 new end-to-end tests for merging outside edits, sharing changes between panes and two timelines syncing one note.
