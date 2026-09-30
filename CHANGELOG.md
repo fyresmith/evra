@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.8.17 (beta)
+
+- Copied cards can be pasted into another timeline; colors it doesn't have are dropped.
+
 ## 0.8.16 (beta)
 
 - Create cards from notes lists notes in the timeline's folder first and leaves notes that another timeline links or syncs unticked.

@@ -149,6 +149,9 @@ const MARKUP = `<div class="stage" data-r="stage" tabindex="0" role="application
 <div class="sheet-body" data-r="sheetBody"></div>
 </aside>`;
 
+// copied cards, with times relative to the first; shared by every open timeline, so cards can be pasted from one into another
+let clip: EvraEvent[] = null;
+
 export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: EvraDoc, onUndoChange: () => void): Timeline {
 	root.addClass('evra-view', 'evra-root');
 	setHTML(root, MARKUP);
@@ -1196,7 +1199,7 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 	function keepPins(moved: Set<string>, d: number) {
 		moved.forEach((id) => { const ev = evById(id); if (ev && ev.rel && moved.has(ev.rel.to) && ev.rel.at != null) ev.rel.at += d; });
 	}
-	let clip: EvraEvent[] = null, lastPointerT: number = null;
+	let lastPointerT: number = null;
 	const copyText = (t: string) => { navigator.clipboard.writeText(t).catch(() => { /* the card copy still works inside Evra */ }); };
 	function copySel() {
 		const evs = selIds().map(evById);
@@ -1218,6 +1221,7 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 			const ev: EvraEvent = { ...(JSON.parse(JSON.stringify(c)) as EvraEvent), id: uid(), t: base + c.t };
 			if (c.end != null) ev.end = base + c.end; else delete ev.end;
 			delete ev.rel;
+			if (ev.color && !S.palette.some((p) => p.id === ev.color)) ev.color = null; // from a timeline with other colors
 			fresh.add(ev.id); S.events.push(ev); ensureRange(ev); ids.push(ev.id);
 		});
 		setSel(ids); commit(before);

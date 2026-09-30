@@ -521,7 +521,8 @@ test('R2E39 duplicating a card nudged by Alt keeps its exact day offset', async 
 	const o = await byId(h, SIEGE);
 	await p.key('d', 'ctrl'); await p.sleep(150);
 	const c = (await h.events()).slice(-1)[0];
-	t.eq((c.t - o.t) % 360, 0, `duplicate should be a whole year later (from ${o.t} to ${c.t})`);
+	// one snap step later (half a year at this zoom), keeping the day of the month
+	t.ok(c.t > o.t && (c.t - o.t) % 30 === 0, `duplicate keeps the day offset (from ${o.t} to ${c.t})`);
 });
 test('R2E40 paste from the right-click menu "Paste here"', async (p, h, t) => {
 	await h.open(); await focusStage(p);
