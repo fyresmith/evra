@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.7.18 (beta)
+
+- Dragging the edge of a top-level era that reaches past the timeline's range no longer shrinks it to one day.
+
 ## 0.7.17 (beta)
 
 - 109 new end-to-end tests for editing, the keyboard, menus, multi-select, copy and paste, and undo.

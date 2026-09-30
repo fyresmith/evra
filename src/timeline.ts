@@ -1589,12 +1589,12 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 		let lo: number, hi: number;
 		if (which === 'start') {
 			hi = Math.min(...group.map((g) => g.end - 1), ...kidsOf(gs).map((k) => k.start));
-			lo = parent ? parent.start : R0;
+			lo = parent ? parent.start : Math.min(R0, ...group.map((g) => g.start)); // a top-level era already past the range edge keeps its ground
 			if (group2.length) lo = Math.max(lo, ...group2.map((h) => h.start + 1), ...kidsOf(g2).map((k) => k.end));
 			else { const prev = S.eras.filter((x) => x !== e && x.parent === e.parent && x.end <= bt).sort((p, q) => q.end - p.end)[0]; if (prev) lo = Math.max(lo, prev.end); }
 		} else {
 			lo = Math.max(...group.map((g) => g.start + 1), ...kidsOf(gs).map((k) => k.end));
-			hi = parent ? parent.end : R1;
+			hi = parent ? parent.end : Math.max(R1, ...group.map((g) => g.end));
 			if (group2.length) hi = Math.min(hi, ...group2.map((h) => h.end - 1), ...kidsOf(g2).map((k) => k.start));
 			else { const next = S.eras.filter((x) => x !== e && x.parent === e.parent && x.start >= bt).sort((p, q) => p.start - q.start)[0]; if (next) hi = Math.min(hi, next.start); }
 		}
