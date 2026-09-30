@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.8.1 (beta)
+
+- Undo and redo first save a card being edited, close an open editor and finish a settings field, so what you typed isn't lost and history stays in order.
+
 ## 0.8.0 (beta)
 
 - On narrow screens (under 520 px), vertical timelines show cards on one side of the line so none are cut off; cards keep their side in the file.

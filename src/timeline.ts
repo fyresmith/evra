@@ -175,7 +175,8 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 	let V = { v0: 0, scale: 1, x: 0, xmin: 0, xmax: 0 }, G: Geo = null, lastL = 0, rafId = 0, animId = 0;
 	let sel: string = null, editing: string = null, drag: Drag = null, lod: Layout['mode'] = 'full', F: FrameInfo = { dots: [], bounds: [], eraLabels: [] }, LY: Layout = null;
 	let hoverB: { id: string; which: 'start' | 'end' } = null, hoverId: string = null, hist: string[] = [], redo: string[] = [], viewSaveT = 0;
-	let popOnClose: (() => void) | null = null, toastT = 0, noAnim = true, destroyed = false, started = false;
+	// popPending: an open editor that commits once it closes records its step so far (and starts a new one) whenever something else commits
+	let popOnClose: (() => void) | null = null, popPending: (() => void) | null = null, toastT = 0, noAnim = true, destroyed = false, started = false;
 	const fresh = new Set<string>(), settling = new Set<string>();
 	const pointers = new Map<number, Local>();
 	const sigs = new WeakMap<HTMLElement, string>();
@@ -234,6 +235,7 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 		while (total > HIST_BYTES && hist.length > HIST_KEEP) total -= hist.shift().length;
 	}
 	function commit(before: string) {
+		if (popPending) { const f = popPending; popPending = null; f(); popPending = f; } // keeps history in order: the editor's step, then this one
 		docEpoch++;
 		resolveRel();
 		if (before && before !== snapshot()) { hist.push(before); redo = []; capHist(); host.requestSave(); }
@@ -245,8 +247,16 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 		if (sel && !S.events.find((e) => e.id === sel)) sel = null;
 		editing = null; host.requestSave(); host.syncNotes(S); invalidate();
 	}
-	function undo() { if (!hist.length) return; popOnClose = null; closePop(); redo.push(snapshot()); restore(hist.pop()); capHist(); updateUndo(); toast('Undone'); if (!sheet.hidden) renderSheet(); }
-	function redoF() { if (!redo.length) return; popOnClose = null; closePop(); hist.push(snapshot()); restore(redo.pop()); capHist(); updateUndo(); if (!sheet.hidden) renderSheet(); }
+	// Undo and redo act on whole steps: first save a card being edited, close an open editor (it records its step as it closes)
+	// and let a focused settings field record its change
+	function settleEdits() {
+		if (editing) finishEdit(true);
+		closePop();
+		const a = doc().activeElement as HTMLElement;
+		if (a && sheetBody.contains(a) && /^(INPUT|TEXTAREA)$/.test(a.tagName)) { a.blur(); sheetBody.focus({ preventScroll: true }); }
+	}
+	function undo() { settleEdits(); if (!hist.length) return; redo.push(snapshot()); restore(hist.pop()); capHist(); updateUndo(); toast('Undone'); if (!sheet.hidden) renderSheet(); }
+	function redoF() { settleEdits(); if (!redo.length) return; hist.push(snapshot()); restore(redo.pop()); capHist(); updateUndo(); if (!sheet.hidden) renderSheet(); }
 	// The settings panel is redrawn only by actions that change what it shows, never merely because something was saved:
 	// redrawing it as a field loses focus would swallow the click that moved the focus.
 	function updateUndo() { onUndoChange(); }
@@ -2470,7 +2480,7 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 	function closePop() {
 		if (pop.hidden) return;
 		const f = popOnClose, had = pop.contains(doc().activeElement);
-		popOnClose = null; pop.hidden = true; pop.empty();
+		popOnClose = null; popPending = null; pop.hidden = true; pop.empty();
 		if (had) stage.focus({ preventScroll: true }); // the focus was in the popover: give it back to the timeline, so shortcuts keep working
 		if (f) f();
 	}
@@ -2572,7 +2582,8 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 	function openEraEditor(id: string, at: At) {
 		const e = eraById(id);
 		if (!e) return;
-		const dep = eraDepths()[id], before = snapshot();
+		const dep = eraDepths()[id];
+		let before = snapshot();
 		openPop(at, `<div class="evra-menu eraed"><input type="text" data-k="eraName" value="${esc(e.name)}" aria-label="Era name"><div class="meta">${dep === 1 ? 'Era' : 'Sub-era, level ' + dep}</div>
 			<div class="dl">Abbreviation, for {E}</div><input type="text" data-k="eraAbbr" value="${esc(e.abbr || '')}" placeholder="${esc(eraAbbr({ name: e.name }))}" aria-label="Era abbreviation">
 			<div class="dl">Starts</div>${dateFields('s', e.start)}<div class="dl">Ends</div>${dateFields('e', e.end)}
@@ -2601,7 +2612,7 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 			const bindDates = () => { ['s', 'e'].forEach((k) => qa(p, `[data-d^="${k}"]`).forEach((el) => (el.onchange = () => apply(k === 's' ? 'start' : 'end', k)))); };
 			bindDates();
 			q1(p, '[data-m=sub]').onclick = () => { // fill the biggest gap inside it that no sub-era covers yet
-				commit(before); popOnClose = null; closePop();
+				popPending = null; commit(before); popOnClose = null; closePop();
 				const kids = S.eras.filter((x) => x.parent === id).sort((x, y) => x.start - y.start);
 				let best: [number, number] = null, cur = e.start;
 				[...kids, { start: e.end, end: e.end }].forEach((k) => { if (k.start - cur > (best ? best[1] - best[0] : 0)) best = [cur, k.start]; cur = Math.max(cur, k.end); });
@@ -2617,6 +2628,7 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 				toast(kids ? 'Era deleted. Its sub-eras moved up a level.' : 'Era deleted.', true);
 			};
 		}, () => commit(before));
+		popPending = () => { commit(before); before = snapshot(); };
 	}
 	function eraHome(a: number, b: number) { // where createEra would put an era for [a, b]: its parent, or null for the top level
 		let pid: string = null;
