@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.7.28 (beta)
+
+- Moving or renaming a folder of linked notes updates each closed timeline in one save instead of one per note.
+
 ## 0.7.27 (beta)
 
 - 60 new end-to-end tests for note sync, embeds, file moves, broken files, random input, leaks and speed on a large world.

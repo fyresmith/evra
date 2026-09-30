@@ -14,6 +14,9 @@ export default class EvraPlugin extends Plugin {
 	notes: NoteCache;
 	private noteLeaf: WorkspaceLeaf | null = null;
 	private redrawT = 0;
+	private renames: [TFile, string][] = []; // note renames waiting to be applied to closed timelines
+	private renamed = new Set<EvraView>(); // open views already told about them
+	private renameT = 0;
 
 	async onload() {
 		await this.loadSettings();
@@ -52,13 +55,14 @@ export default class EvraPlugin extends Plugin {
 		this.registerEvent(this.app.vault.on('delete', (f) => { if (f instanceof TFile) { this.notes.changed(f.path); this.forEachView((v) => v.linksChanged()); } }));
 		// created files can change where links point; the vault reports every file as created while it loads, so wait for that
 		this.app.workspace.onLayoutReady(() => this.registerEvent(this.app.vault.on('create', (f) => { if (f instanceof TFile && f.extension === 'md') this.forEachView((v) => v.linksChanged()); })));
-		this.registerEvent(this.app.vault.on('rename', (f, oldPath) => { if (f instanceof TFile && f.extension === 'md') void this.noteRenamed(f, oldPath); }));
+		this.registerEvent(this.app.vault.on('rename', (f, oldPath) => { if (f instanceof TFile && f.extension === 'md') this.noteRenamed(f, oldPath); }));
 		this.registerEvent(this.app.workspace.on('css-change', () => this.forEachView((v) => v.timeline?.cssChanged())));
 		this.registerEvent(this.app.workspace.on('active-leaf-change', (leaf) => { if (leaf && leaf.view instanceof EvraView) leaf.view.timeline?.focus(); }));
 	}
 
 	onunload() {
 		window.clearTimeout(this.redrawT);
+		if (this.renames.length) { window.clearTimeout(this.renameT); void this.renamesDone(); } // closed timelines still follow
 		this.noteLeaf = null;
 	}
 
@@ -76,39 +80,55 @@ export default class EvraPlugin extends Plugin {
 		this.redrawT = window.setTimeout(() => this.forEachView((v) => v.timeline?.notesChanged()), 80);
 	}
 
-	/** A note was renamed: update cards in open timelines, and in timeline files that aren't open. */
-	private async noteRenamed(file: TFile, oldPath: string) {
+	/** A note was renamed: update cards in open timelines now, and in timeline files that aren't open once the burst is over
+	    (moving a folder renames every note in it, one event each: each closed timeline is then read and written once). */
+	private noteRenamed(file: TFile, oldPath: string) {
 		this.notes.renamed(oldPath);
+		this.forEachView((v) => { v.noteRenamed(file, oldPath); this.renamed.add(v); });
+		this.renames.push([file, oldPath]);
+		window.clearTimeout(this.renameT);
+		this.renameT = window.setTimeout(() => { void this.renamesDone(); }, 60);
+	}
+
+	private async renamesDone() {
+		const batch = this.renames, told = this.renamed;
+		this.renames = []; this.renamed = new Set();
 		const open = new Set<string>();
-		this.forEachView((v) => { if (v.file) open.add(v.file.path); v.noteRenamed(file, oldPath); });
-		// every link to the note, and its path in the synced-notes list, contains its old name; as JSON it may be escaped
-		const base = oldPath.split('/').pop().replace(/\.md$/, ''), needles = [base, JSON.stringify(base).slice(1, -1)];
+		this.forEachView((v) => {
+			if (v.file) open.add(v.file.path);
+			if (!told.has(v)) batch.forEach(([f, old]) => v.noteRenamed(f, old)); // opened from disk after the renames began
+			v.renamesDone();
+		});
+		// every link to a note, and its path in the synced-notes list, contains its old name; as JSON it may be escaped
+		const needles = batch.flatMap(([, old]) => { const base = old.split('/').pop().replace(/\.md$/, ''); return [base, JSON.stringify(base).slice(1, -1)]; });
+		const dirOf = (p: string) => p.split('/').slice(0, -1).join('/');
 		for (const f of this.app.vault.getFiles()) {
 			if (f.extension !== 'evra' || open.has(f.path)) continue;
 			let text: string;
 			try { text = await this.app.vault.cachedRead(f); } catch { continue; }
-			if (!needles.some((n) => text.includes(n))) continue; // skip the read-and-parse for timelines that can't mention it
+			if (!needles.some((n) => text.includes(n))) continue; // skip the read-and-parse for timelines that can't mention them
 			await this.app.vault.process(f, (data) => {
 				let doc: { events?: { file?: string | null }[]; opts?: { sync?: { notes?: string[] } } };
 				try { doc = JSON.parse(data) as typeof doc; } catch { return data; }
 				let changed = false;
-				const dirOf = (p: string) => p.split('/').slice(0, -1).join('/'), here = dirOf(f.path);
-				(doc.events || []).forEach((e) => {
-					if (!e || !e.file || !linkMatchesPath(e.file, oldPath)) return;
+				const here = dirOf(f.path);
+				for (const [file, oldPath] of batch) {
 					const link = this.app.metadataCache.fileToLinktext(file, f.path, true);
-					if (e.file === link) return;
-					// Did this link point at the moved note before the move? A link naming the full old path did. A shorter one
-					// (a bare name) may now resolve to another note with the same name; it only pointed at that other note
-					// before if Obsidian would have preferred it then: it sits beside the timeline and the old note didn't.
-					// When unsure, keep the card on the note it was showing: the one that moved.
-					const now = this.app.metadataCache.getFirstLinkpathDest(e.file, f.path);
-					const otherWon = now && now !== file && dirOf(now.path) === here && dirOf(oldPath) !== here;
-					const fullPath = e.file.split('|')[0].split('#')[0].replace(/\.md$/, '') === oldPath.replace(/\.md$/, '');
-					if (fullPath || !otherWon) { e.file = link; changed = true; }
-				});
-				// as the open view does: the list of notes carrying synced properties follows the rename
-				const sn = doc.opts && doc.opts.sync && doc.opts.sync.notes;
-				if (Array.isArray(sn) && sn.includes(oldPath)) { doc.opts.sync.notes = sn.map((p) => (p === oldPath ? file.path : p)); changed = true; }
+					(doc.events || []).forEach((e) => {
+						if (!e || !e.file || !linkMatchesPath(e.file, oldPath) || e.file === link) return;
+						// Did this link point at the moved note before the move? A link naming the full old path did. A shorter one
+						// (a bare name) may now resolve to another note with the same name; it only pointed at that other note
+						// before if Obsidian would have preferred it then: it sits beside the timeline and the old note didn't.
+						// When unsure, keep the card on the note it was showing: the one that moved.
+						const now = this.app.metadataCache.getFirstLinkpathDest(e.file, f.path);
+						const otherWon = now && now !== file && dirOf(now.path) === here && dirOf(oldPath) !== here;
+						const fullPath = e.file.split('|')[0].split('#')[0].replace(/\.md$/, '') === oldPath.replace(/\.md$/, '');
+						if (fullPath || !otherWon) { e.file = link; changed = true; }
+					});
+					// as the open view does: the list of notes carrying synced properties follows the rename
+					const sn = doc.opts && doc.opts.sync && doc.opts.sync.notes;
+					if (Array.isArray(sn) && sn.includes(oldPath)) { doc.opts.sync.notes = sn.map((p) => (p === oldPath ? file.path : p)); changed = true; }
+				}
 				return changed ? JSON.stringify(doc, null, '\t') : data;
 			});
 		}

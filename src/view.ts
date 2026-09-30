@@ -307,26 +307,43 @@ export class EvraView extends TextFileView {
 		this.timeline.noteChanged(ev.file);
 	}
 
+	// A burst of renames (moving a folder renames each note in it) is taken as one: where links pointed before the first,
+	// and the undo history fixed once at the end
+	private renameBefore: Map<string, TFile | null> | null = null;
+	private relinks = new Map<string, string>(); // old link → new
+
 	/** A note was renamed or moved: point cards that linked to it at its new name. Returns true when something changed. */
 	noteRenamed(file: TFile, oldPath: string): boolean {
-		const before = new Map(this.resolved); // where each link pointed before the move (the TFile object is the same one, renamed)
+		const before = this.renameBefore ??= new Map(this.resolved); // the TFile object is the same one, renamed
 		this.resolved.clear();
 		if (!this.timeline) return false;
 		const doc = this.timeline.getDoc();
 		let changed = false;
-		const link = this.linkFor(file), old = new Set<string>();
+		const link = this.linkFor(file);
 		doc.events.forEach((e) => {
 			if (!e.file || !linkMatchesPath(e.file, oldPath)) return;
 			// the link named the old path; keep it pointing at this note unless it now names a different one
 			const now = this.resolve(e.file), was = before.get(e.file);
 			// it pointed at this note before (even if a same-named note now answers to the old link); a bare name never looked up is
 			// taken to mean the moved note; or it no longer points anywhere else
-			if ((was === file || (was === undefined && !e.file.includes('/')) || !now || now === file) && e.file !== link) { old.add(e.file); e.file = link; changed = true; }
+			if ((was === file || (was === undefined && !e.file.includes('/')) || !now || now === file) && e.file !== link) {
+				for (const [k, v] of this.relinks) if (v === e.file) this.relinks.set(k, link); // renamed twice in one burst
+				this.relinks.set(e.file, link);
+				e.file = link; changed = true;
+			}
 		});
-		if (old.size) this.timeline.relinkHistory([...old], link);
 		if (doc.opts.sync.notes) doc.opts.sync.notes = doc.opts.sync.notes.map((p) => (p === oldPath ? file.path : p));
 		if (changed) { this.requestSave(); this.timeline.notesChanged(); }
 		return changed;
+	}
+
+	/** The burst of renames is over. */
+	renamesDone() {
+		this.renameBefore = null;
+		const byTo = new Map<string, string[]>();
+		for (const [from, to] of this.relinks) byTo.set(to, [...(byTo.get(to) || []), from]);
+		this.relinks.clear();
+		if (this.timeline) for (const [to, from] of byTo) this.timeline.relinkHistory(from, to);
 	}
 }
 
