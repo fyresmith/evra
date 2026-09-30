@@ -89,7 +89,7 @@ const FMT_FIELDS: [string, [keyof EvraDoc['cal']['fmt'], string, string][]][] = 
 	['Spans', [['range', 'Start to end', 'range'], ['ongoing', 'Word for an ongoing span', 'ongoing']]],
 	['Approximate dates', [['circa', 'Circa (use {date})', 'circa']]],
 ];
-const GUT = 22, GAPC = 14, LANE = 6, RULER = 64; // gutter beside the line, gap between stacked cards, spacing of span threads, width of the year ruler
+const GUT = 22, GAPC = 14, LANE = 6, RULER = 64, NARROW = 520; // gutter beside the line, gap between stacked cards, spacing of span threads, width of the year ruler
 const BASE_H = 55, LINE_H = 18.1, GROUP_H = 112; // card = title + date (+ description lines)
 const MAXL = 6; // past this many overlapping spans, the rest share one bundled lane
 const laneC = (i: number) => 12 + i * LANE;
@@ -386,7 +386,7 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 		for (const side of ['a', 'b'] as Side[]) {
 			// only lay out what is on screen or within a screen of it; far-off cards cannot affect what you see
 			const span_ = G.L / V.scale, tLo = V.v0 - span_, tHi = V.v0 + 2 * span_;
-			const evs = EV_LIST.filter((e) => e.side === side && (e.end != null ? e.end : e.t) >= tLo && e.t <= tHi);
+			const evs = EV_LIST.filter((e) => sideOf(e) === side && (e.end != null ? e.end : e.t) >= tLo && e.t <= tHi);
 			let single = evs.filter((e) => e.end == null);
 			const grps: Item[] = [];
 			if (grouping) {
@@ -411,7 +411,8 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 			].sort((p, q) => (q.span ? 1 : 0) - (p.span ? 1 : 0) || p.a - q.a || (p.span ? q.rb - q.ra - (p.rb - p.ra) : 0)); // spans first, so they hug the line
 			// Cards stack snugly: each sits right against whatever is already beside the line at its moment, so short cards
 			// never inherit a tall neighbour's row. A card weighs sliding along the time axis against moving further out, and takes the cheaper.
-			const unit = (vert ? cr : BASE_H) + GAPC, penalty = (len * 0.8) / unit, maxShift = len * 1.1;
+			// one-sided on a phone, a second column is off screen: slide further along the line before going out
+			const unit = (vert ? cr : BASE_H) + GAPC, penalty = ((narrow ? 4 : 0.8) * len) / unit, maxShift = len * (narrow ? 3 : 1.1);
 			const placed: Rect[] = [], ribs: Rect[] = []; // placed card rects and span-block rects: [t0, t1, c0, c1]
 			// placed cards are also bucketed along the time axis, so each card only looks at its neighbours
 			const BK = Math.max(200, (maxShift + len) * 2), buckets = new Map<number, Rect[]>();
@@ -478,7 +479,7 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 	// Threads: each span gets a lane beside the line, reused once the earlier span has ended
 	let lanesMemo: { key: string; v: ReturnType<typeof threadLanes_> } = null;
 	function threadLanes() {
-		const key = contentEpoch + '|' + S.opts.spanStyle + '|' + EV_LIST.length;
+		const key = contentEpoch + '|' + S.opts.spanStyle + '|' + EV_LIST.length + '|' + narrow;
 		if (!lanesMemo || lanesMemo.key !== key) lanesMemo = { key, v: threadLanes_() };
 		return lanesMemo.v;
 	}
@@ -487,13 +488,13 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 		if (!threadsOn()) return { lanes, n, bundled };
 		for (const side of ['a', 'b'] as Side[]) {
 			const ends: number[] = [];
-			EV_LIST.filter((e) => e.side === side && e.end != null).sort((x, y) => x.t - y.t || y.end - x.end).forEach((e) => {
+			EV_LIST.filter((e) => sideOf(e) === side && e.end != null).sort((x, y) => x.t - y.t || y.end - x.end).forEach((e) => {
 				let i = ends.findIndex((v) => v < e.t);
 				if (i < 0) { i = ends.length; ends.push(0); }
 				ends[i] = e.oe ? Infinity : e.end; lanes[e.id] = i;
 			});
 			n[side] = ends.length;
-			if (n[side] > MAXL) { S.events.forEach((e) => { if (e.side === side && lanes[e.id] >= MAXL - 1) { lanes[e.id] = MAXL - 1; bundled.add(e.id); } }); n[side] = MAXL; }
+			if (n[side] > MAXL) { S.events.forEach((e) => { if (sideOf(e) === side && lanes[e.id] >= MAXL - 1) { lanes[e.id] = MAXL - 1; bundled.add(e.id); } }); n[side] = MAXL; }
 		}
 		return { lanes, n, bundled };
 	}
@@ -505,13 +506,14 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 	}
 	function chooseLayout_(gmax: number): Layout {
 		// Full cards unless a stretch gets genuinely crowded. Width never shrinks to fit; extra columns overflow and the timeline scrolls across instead.
-		const fit = G.C / 2 - gmax - 16, w = S.cardWidth || 240;
-		const limits: ['full' | 'compact', number][] = [['full', lod === 'full' ? 6 : 5], ['compact', lod === 'dots' ? 8 : 10]];
+		const [c0, padR] = crossHome(), fit = (narrow ? G.C - c0 - padR : G.C / 2 - 16) - gmax, w = S.cardWidth || 240;
+		// one-sided on a phone: full cards only while they fit in one column, so none hide off the edge
+		const limits: ['full' | 'compact', number][] = [['full', narrow ? 1 : lod === 'full' ? 6 : 5], ['compact', lod === 'dots' ? 8 : 10]];
 		// a quick count first: if even perfectly packed cards could not fit, skip that level without laying it out
 		const t0 = V.v0, t1 = V.v0 + G.L / V.scale, cnt = { a: 0, b: 0 };
-		EV_LIST.forEach((e) => { if ((e.end != null ? e.end : e.t) >= t0 && e.t <= t1) cnt[e.side]++; });
+		EV_LIST.forEach((e) => { if ((e.end != null ? e.end : e.t) >= t0 && e.t <= t1) cnt[sideOf(e)]++; });
 		for (const [mode, maxCols] of limits) {
-			const cr = G.vert ? clamp(fit, 150, mode === 'full' ? w : Math.min(w, 210)) : mode === 'full' ? BASE_H : 38;
+			const cr = G.vert ? clamp(fit, narrow ? 110 : 150, mode === 'full' ? w : Math.min(w, 210)) : mode === 'full' ? BASE_H : 38;
 			const minLen = G.vert ? (mode === 'full' ? BASE_H : 38) : mode === 'full' ? 220 : 150;
 			if (Math.max(cnt.a, cnt.b) * (minLen + GAPC) > (G.L + minLen) * maxCols * 1.5) continue;
 			const r = pack(mode, cr);
@@ -519,6 +521,16 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 			if (Math.max(r.ext.a, r.ext.b) <= maxCols * typical) { r.cross = { a: cr, b: cr }; return r; }
 		}
 		return { mode: 'dots', items: [], ext: { a: 0, b: 0 }, cross: { a: 0, b: 0 }, ribbons: { a: [], b: [] }, groups: {}, tags: { a: [], b: [] } };
+	}
+	/* A phone-width vertical timeline has no room for cards on both sides: every card goes right of a line that sits
+	   just past the ruler and era rail, and stops short of the zoom controls. Only the display changes; each card keeps its side. */
+	let narrow = false;
+	const sideOf = (e: EvraEvent): Side => (narrow ? 'b' : e.side);
+	/** Where the line sits across the view (before scrolling across), and the room kept free on the far side. */
+	function crossHome(): [number, number] {
+		if (!narrow) return [G.C / 2, 16];
+		const dep = eraDepths(), maxDep = Math.max(0, ...S.eras.map((e) => dep[e.id]));
+		return [RULER + (maxDep ? maxDep * 7 + 4 : 0) + 10, 62];
 	}
 	const innerEdge = (it: Item) => LY.gut[it.side] + (it.cOff || 0);
 	const crossOf = (it: Item) => (G.vert ? LY.cross[it.side] : it.cr);
@@ -594,6 +606,8 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 		EV_LIST = filterOn() && FLT.mode === 'hide' ? S.events.filter(matches) : S.events;
 		G = geo();
 		if (G.L < 20 || G.C < 20) return;
+		const nw = G.vert && G.C < NARROW;
+		if (nw !== narrow) { narrow = nw; layoutDirty = true; root.toggleClass('narrow', narrow); }
 		if (!started) start();
 		if (lastL && lastL !== G.L) { const c = V.v0 + lastL / 2 / V.scale; V.v0 = c - G.L / 2 / V.scale; }
 		lastL = G.L; clampView();
@@ -606,8 +620,9 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 		const items = LY.items;
 		let extA = 0, extB = 0;
 		for (const it of items) if (it.hi > -60 && it.lo < L + 60) { const e = innerEdge(it) + crossOf(it); if (it.side === 'a') extA = Math.max(extA, e); else extB = Math.max(extB, e); }
-		V.xmin = Math.min(0, C / 2 - 16 - extA); V.xmax = Math.max(0, extB + 16 - C / 2);
-		V.x = clamp(V.x, V.xmin, V.xmax); G.cx = C / 2 - V.x; G.ext = { a: extA, b: extB };
+		const [c0, padR] = crossHome();
+		V.xmin = Math.min(0, c0 - 16 - extA); V.xmax = Math.max(0, extB + padR - (C - c0));
+		V.x = clamp(V.x, V.xmin, V.xmax); G.cx = c0 - V.x; G.ext = { a: extA, b: extB };
 		const out: SvgEl[] = [], defs: SvgEl[] = [];
 		F = { dots: [], bounds: [], eraLabels: [] };
 		const cx = G.cx, cS = (s: number) => clamp(s, -80, L + 80), vis = (a: number, b: number) => Math.max(a, b) >= -80 && Math.min(a, b) <= L + 80;
@@ -731,7 +746,7 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 		if (lod === 'dots' && !threadsOn()) {
 			for (const side of ['a', 'b'] as Side[]) {
 				const cols: [number, number][][] = [], sg = side === 'a' ? -1 : 1;
-				EV_LIST.filter((e) => e.side === side && e.end != null).sort((x, y) => x.t - y.t).forEach((ev) => {
+				EV_LIST.filter((e) => sideOf(e) === side && e.end != null).sort((x, y) => x.t - y.t).forEach((ev) => {
 					const a = P(ev.t), b = P(ev.end);
 					let j = 0;
 					for (; j < cols.length; j++) if (cols[j].every(([x, y]) => b + 6 <= x || a >= y + 6)) break;
@@ -772,7 +787,7 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 				if (ev.end == null || LY.lanes[ev.id] == null) return;
 				const ps = P(ev.t), pe = P(ev.end);
 				if (pe < -80 || ps > L + 80) return;
-				const sg = ev.side === 'a' ? -1 : 1, lc = sg * laneC(LY.lanes[ev.id]), c = col(ev.color), on = hl.has(ev.id);
+				const sg = sideOf(ev) === 'a' ? -1 : 1, lc = sg * laneC(LY.lanes[ev.id]), c = col(ev.color), on = hl.has(ev.id);
 				if (lod === 'dots' && pe - ps < 36 && !on) return; // zoomed far out, a short span is just its dot
 				const r = Math.max(4, Math.min(24, (pe - ps) / 2.5)), a0 = Math.max(ps, -80), b0 = Math.min(pe, L + 80);
 				const M = (p: number, cc: number) => xy(Sx(p), cc).map(rd).join(',');
@@ -780,12 +795,12 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 				d += pe > L + 80 ? ` L${M(b0, lc)}` : ` L${M(pe - r, lc)} C${M(pe - r * 0.45, lc)} ${M(pe - r * 0.55, 0)} ${M(pe, 0)}`;
 				const inB = LY.bundled && LY.bundled.has(ev.id);
 				// spans past the lane limit share one bundled lane, drawn once below; a hovered one still shows on its own
-				if (inB && !on) { bundleHits.push({ ev, side: ev.side, ps, pe }); return; }
+				if (inB && !on) { bundleHits.push({ ev, side: sideOf(ev), ps, pe }); return; }
 				threadOut.push(
 					pathEl(d, `stroke:${c};stroke-width:${on ? 3.5 : 2.5};fill:none;stroke-linecap:round;opacity:${on ? 1 : 0.85 * fadeOf(ev.id)}`),
 					pathEl(d, 'stroke:transparent;stroke-width:12;fill:none;pointer-events:stroke;cursor:pointer', { 'data-thread': ev.id }),
 				);
-				if (!inB && ps < edge - 4 && pe > edge + 40) LY.tags[ev.side].push({ ev, c: laneC(LY.lanes[ev.id]), color: c });
+				if (!inB && ps < edge - 4 && pe > edge + 40) LY.tags[sideOf(ev)].push({ ev, c: laneC(LY.lanes[ev.id]), color: c });
 			});
 		}
 		visItems.forEach((it) => { // a group gathers its moments with a small bracket beside the line
@@ -857,7 +872,7 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 			if (!ev.rel) return;
 			const a = evById(ev.rel.to);
 			if (!a || !(hl.has(ev.id) || hl.has(a.id))) return;
-			const sa = ts(ev.rel.from === 'end' && a.end != null ? a.end : a.t), sd = ts(ev.t), sg = ev.side === 'a' ? -1 : 1, bulge = sg * Math.min(80, Math.abs(sd - sa) / 3 + 18);
+			const sa = ts(ev.rel.from === 'end' && a.end != null ? a.end : a.t), sd = ts(ev.t), sg = sideOf(ev) === 'a' ? -1 : 1, bulge = sg * Math.min(80, Math.abs(sd - sa) / 3 + 18);
 			const pts = ([[sa, 0], [sa, bulge], [sd, bulge], [sd, 0]] as [number, number][]).map(([p, c]) => pt(p, c).join(','));
 			out.push(pathEl(`M${pts[0]} C${pts[1]} ${pts[2]} ${pts[3]}`, 'fill:none;stroke:var(--evra-accent);stroke-width:1.5;stroke-dasharray:4 4'), circ(sd, 0, 3, 'fill:var(--evra-accent)'));
 		});
@@ -892,7 +907,7 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 		// so it is instant and never triggers the stacking transitions.
 		cardsLayer.className = 'cards ' + (G.vert ? 'v' : 'h') + (noAnim ? ' noanim' : '') + (S.opts.tint ? '' : ' notint');
 		cardsLayer.style.transform = G.vert ? `translate3d(${-V.x}px,0,0)` : `translate3d(0,${-V.x}px,0)`;
-		const cx0 = G.C / 2;
+		const cx0 = G.cx + V.x; // the line before scrolling across
 		if (noAnim) raf(() => raf(() => { noAnim = false; cardsLayer.removeClass('noanim'); }));
 		const seen = new Set<string>(), calSig = JSON.stringify(S.cal) + S.opts.cardLines + (G.vert ? LY.cross.a : 0) + S.eras.map((e) => e.start + e.name).join();
 		const hl = new Set([sel, hoverId]);
@@ -951,7 +966,7 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 	}
 	function cardHTML(ev: EvraEvent, mode = lod, forEdit = false) {
 		const linked = !!ev.file, title = titleOf(ev), date = evDate(ev) + (sec().on && sec().onCards ? ` · ${secLabel(secYear(ev.t))}` : '');
-		if (mode === 'compact') return `${ev.icon ? `<i class="sw ic">${esc(ev.icon)}</i>` : '<i class="sw"></i>'}<span class="tt">${esc(title)}</span><span class="dt">${esc(date)}</span>`;
+		if (mode === 'compact') return `${ev.icon ? `<i class="sw ic">${esc(ev.icon)}</i>` : '<i class="sw"></i>'}<span class="tt">${esc(title)}</span><span class="dt">${esc(date)}</span><button class="mb" data-act="menu" aria-label="Card options" tabindex="-1">${ICON.dots}</button>`; // the menu button shows once selected: touch has no hover to peek
 		const icon = linked ? `<button class="ln" data-act="open" aria-label="Open note" tabindex="-1">${ICON.note}</button>` : '';
 		const body = linked ? inline(noteExcerpt(noteSrc(ev))) : inline(ev.text || '').replace(/\n/g, '<br>');
 		const ages = agesOf(ev);
@@ -1484,14 +1499,14 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 					if (x.rel && set.has(x.rel.to) && m.relAt != null) x.rel.at = m.relAt + (nt - o.t);
 				});
 			}
-			if (Math.abs(L.c) > 26) ev.side = L.c < 0 ? 'a' : 'b';
+			if (Math.abs(L.c) > 26 && !narrow) ev.side = L.c < 0 ? 'a' : 'b'; // one-sided on a narrow screen: there is no other side to drop on
 			drag.free = { x: drag.el0.x + L.x - drag.start.x, y: drag.el0.y + L.y - drag.start.y };
 			showTip(L, ev.end != null ? fmtRange(ev) : fmt(ev.t)); invalidate();
 			return;
 		}
 		if (drag.type === 'group') { // whole years keep each member on its own day, so the group stays together
 			const k = Math.round(dt / dpy()), d = Math.round(dt);
-			drag.members.forEach((m) => { const ev = evById(m.id), p = parts(m.t); ev.t = fine ? m.t + d : toT(p.yr + k, p.m, p.d); if (Math.abs(L.c) > 26) ev.side = L.c < 0 ? 'a' : 'b'; });
+			drag.members.forEach((m) => { const ev = evById(m.id), p = parts(m.t); ev.t = fine ? m.t + d : toT(p.yr + k, p.m, p.d); if (Math.abs(L.c) > 26 && !narrow) ev.side = L.c < 0 ? 'a' : 'b'; });
 			drag.free = { x: drag.el0.x + L.x - drag.start.x, y: drag.el0.y + L.y - drag.start.y };
 			showTip(L, `${drag.members.length} events · ${yearStr(drag.year + k)}`); invalidate();
 			return;
@@ -1561,7 +1576,7 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 		el.style.setProperty('--lines', String(nl)); el.toggleClass('nodesc', !nl);
 		const x = px(src, 'left'), y = px(src, 'top'), w = px(src, 'width'), h = px(src, 'height');
 		let W: number, H: number, X: number, Y: number;
-		if (G.vert) { W = Math.max(w, S.cardWidth || 240); H = cardSize(ev, W); X = ev.side === 'a' ? x + w - W : x; Y = y + h / 2 - 18; }
+		if (G.vert) { W = Math.max(w, S.cardWidth || 240); H = cardSize(ev, W); X = sideOf(ev) === 'a' ? x + w - W : x; Y = y + h / 2 - 18; }
 		else { W = 220; H = cardSize(ev, 220); X = x; Y = ev.side === 'a' ? y + h - H : y; }
 		const tx = G.vert ? -V.x : 0, ty = G.vert ? 0 : -V.x;
 		place(el, [clamp(X + tx, 6, G.W - W - 6) - tx, clamp(Y + ty, 6, G.H - H - 6) - ty, W, H]);

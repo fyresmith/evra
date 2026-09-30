@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.8.0 (beta)
+
+- On narrow screens (under 520 px), vertical timelines show cards on one side of the line so none are cut off; cards keep their side in the file.
+
 ## 0.7.41 (beta)
 
 - Create cards from notes lists the best-dated notes first, ticks only strong candidates, shows a count with “and N more”, has Tick all / Untick all, and its button counts the ticked notes.

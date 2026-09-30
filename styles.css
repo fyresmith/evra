@@ -2037,6 +2037,22 @@
 @media (max-width:760px) {
 	.evra-root.evra-view .hint { display:none }
 }
+/* phone width (the timeline sets .narrow): cards go above the era labels that share their side, and the breadcrumb keeps to one line */
+.evra-root.evra-view.narrow .cards {
+	z-index:1
+}
+.evra-root.evra-view.narrow .eralabels {
+	z-index:0
+}
+.evra-root.evra-view.narrow .crumb {
+	flex-wrap:nowrap;
+	overflow:hidden
+}
+.evra-root.evra-view.narrow .crumb button {
+	min-width:0;
+	overflow:hidden;
+	text-overflow:ellipsis
+}
 
 /* Parts that only exist in the plugin */
 /* a card whose linked note doesn't exist (deleted, or not created yet) */
