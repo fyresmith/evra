@@ -98,3 +98,17 @@ test('R2B4 the file changes on disk while the timeline has unsaved changes: both
 	await p.sleep(800);
 	t.ok(!(await h.events()).some((e) => e.title === 'Siege (edited outside)'), 'an outside delete shows');
 });
+
+test('R2B5 two panes on one file: an edit in one shows in the other at once, with no merge notice', async (p, h, t) => {
+	await h.open();
+	await p.ev(`app.workspace.duplicateLeaf(app.workspace.activeLeaf, 'vertical').then(() => 1)`); await p.sleep(1000);
+	const L = 'app.workspace.getLeavesOfType("evra")';
+	await p.ev(`${L}[0].view.timeline.run('new-event')`); await p.sleep(100);
+	const counts = await p.ev(`${L}.map(l => l.view.timeline.getDoc().events.length).join()`);
+	const [a, b] = counts.split(',');
+	t.eq(a, b, 'both panes have the new card before any save: ' + counts);
+	await p.ev(`${L}[1].view.timeline.run('new-event')`); await p.sleep(3000);
+	t.ok(!(await p.ev(`[...document.querySelectorAll('.notice')].some(n => /unsaved changes/.test(n.textContent))`)), 'no merge notice between panes');
+	const saved = await h.saved();
+	t.eq(saved.events.length, Number(a) + 1, 'both new cards saved');
+});

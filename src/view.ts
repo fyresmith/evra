@@ -118,6 +118,16 @@ export class EvraView extends TextFileView {
 		this.contentEl.createEl('p', { text: 'Open it in another editor to fix it, or restore it from a backup or the file recovery core plugin.' });
 	}
 
+	/** Other panes showing the same file get each change at once, so neither drops the other's unsaved edits when the
+	    file is saved. Their own undo history is cleared, as it would be by an outside change. */
+	private shareDoc() {
+		const others = this.file && this.timeline ? this.app.workspace.getLeavesOfType(VIEW_TYPE).map((l) => l.view)
+			.filter((v): v is EvraView => v instanceof EvraView && v !== this && v.file === this.file && !!v.timeline) : [];
+		if (!others.length) return;
+		const json = JSON.stringify(this.timeline.getDoc());
+		for (const v of others) { v.timeline.setDoc(JSON.parse(json) as EvraDoc); v.updateUndo(); }
+	}
+
 	private updateUndo() {
 		this.undoBtn?.toggleClass('is-disabled', !this.timeline?.canUndo());
 		this.redoBtn?.toggleClass('is-disabled', !this.timeline?.canRedo());
@@ -201,7 +211,7 @@ export class EvraView extends TextFileView {
 		const app = this.app, plugin = this.plugin;
 		const fmOf = (f: TFile) => app.metadataCache.getFileCache(f)?.frontmatter as Record<string, unknown> | undefined;
 		return {
-			requestSave: () => { this.requestSave(); this.updateUndo(); },
+			requestSave: () => { this.requestSave(); this.updateUndo(); this.shareDoc(); },
 			saveViewState: () => app.workspace.requestSaveLayout(),
 			fileName: () => (this.file ? this.file.basename : 'Timeline'),
 			noteExists: (link) => !!this.resolve(link),
