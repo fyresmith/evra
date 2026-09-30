@@ -2743,6 +2743,9 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 				all[i < 0 ? (fwd ? 0 : all.length - 1) : (i + (fwd ? 1 : all.length - 1)) % all.length]?.focus();
 				return;
 			}
+			// a menu that shows ⌫ on its Delete does what it says (not while typing in one of its fields)
+			const del = (e.key === 'Delete' || e.key === 'Backspace') && !/^(INPUT|TEXTAREA|SELECT)$/.test(tag) && q1(pop, '[data-m=del]:has(kbd)');
+			if (del) { e.preventDefault(); e.stopPropagation(); del.click(); return; }
 			if (!(e.ctrlKey || e.metaKey)) return; // plain keys belong to the menu; Ctrl/Cmd shortcuts (undo, redo…) still work
 		}
 		const tg = e.target as HTMLElement, typing = tg.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(tg.tagName), mod = e.ctrlKey || e.metaKey, k = e.key.toLowerCase();

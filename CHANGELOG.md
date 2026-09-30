@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.8.9 (beta)
+
+- Delete or Backspace in a card menu deletes the card, as its hint says.
+
 ## 0.8.8 (beta)
 
 - Escape closes an open popover such as Help first and keeps the selection.
