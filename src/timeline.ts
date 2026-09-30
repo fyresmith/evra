@@ -2642,14 +2642,16 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 	/* ---------- keyboard: only while the timeline has focus ---------- */
 	// root outlives this timeline (the view remounts into it when another file opens there), so the listener must go with it
 	const onKey = (e: KeyboardEvent) => {
-		if (!pal.hidden || (e.defaultPrevented && e.key !== 'Escape')) return; // Obsidian claims Escape on a focused checkbox, but here it should still close the panel
-		if (!pop.hidden && pop.contains(e.target as Node)) { // inside a menu: arrows move between its controls, and Escape closes it
+		// Obsidian claims Escape on a focused checkbox or while one of its scopes is up, but here it should still close a menu or the panel
+		if (!pal.hidden || (e.defaultPrevented && e.key !== 'Escape')) return;
+		const inPop = !pop.hidden && pop.contains(e.target as Node);
+		if (inPop) { // inside a menu: arrows and Tab cycle through its controls (focus stays trapped until it closes), and Escape closes it
 			if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); closePop(); return; }
-			const tag = (e.target as HTMLElement).tagName;
-			if ((e.key === 'ArrowDown' || e.key === 'ArrowUp') && tag !== 'SELECT' && tag !== 'TEXTAREA') {
+			const tag = (e.target as HTMLElement).tagName, fwd = e.key === 'ArrowDown' || e.key === 'Tab' && !e.shiftKey;
+			if ((e.key === 'ArrowDown' || e.key === 'ArrowUp') && tag !== 'SELECT' && tag !== 'TEXTAREA' || e.key === 'Tab' && !(e.ctrlKey || e.metaKey || e.altKey)) {
 				e.preventDefault(); e.stopPropagation();
-				const all = qa(pop, 'button:not([disabled]), input, select, textarea'), i = all.indexOf(e.target as HTMLElement);
-				all[(i + (e.key === 'ArrowDown' ? 1 : all.length - 1)) % all.length]?.focus();
+				const all = qa(pop, 'button:not([disabled]), input:not([disabled]), select, textarea, a[href], [tabindex]:not([tabindex="-1"])').filter((x) => x.getClientRects().length), i = all.indexOf(e.target as HTMLElement);
+				all[i < 0 ? (fwd ? 0 : all.length - 1) : (i + (fwd ? 1 : all.length - 1)) % all.length]?.focus();
 				return;
 			}
 			if (!(e.ctrlKey || e.metaKey)) return; // plain keys belong to the menu; Ctrl/Cmd shortcuts (undo, redo…) still work

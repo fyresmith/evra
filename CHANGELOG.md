@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.7.40 (beta)
+
+- Tab cycles through an open card menu's controls, and Escape always closes it.
+
 ## 0.7.39 (beta)
 
 - Moving a folder of linked notes updates the undo history in one pass, not once per note.
