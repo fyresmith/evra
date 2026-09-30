@@ -1230,6 +1230,7 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 		const before = snapshot();
 		ids.forEach((id) => (evById(id).color = p ? p.id : null));
 		commit(before);
+		qa(pop, '[data-selmenu] .swb[data-color]').forEach((b) => b.toggleClass('on', b.dataset.color === (p ? p.id : ''))); // an open menu for these cards shows the new color
 	}
 	function toggleSpanSel() {
 		const evs = selIds().map(evById).filter(Boolean);
@@ -2519,7 +2520,7 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 	function openCardMenu(ev: EvraEvent, at: At) {
 		const span = ev.end != null, many = selIds().length > 1 && selIds().includes(ev.id) ? selIds().map(evById) : null;
 		if (many) {
-			openPop(at, `<div class="evra-menu"><div class="meta">${many.length} cards selected</div>${swatchRow(null)}<button data-m="flip">Move to other side</button><button data-m="copy">Copy <kbd>Ctrl C</kbd></button><button data-m="dup">Duplicate <kbd>Ctrl D</kbd></button><button data-m="zoom">Zoom to them <kbd>Z</kbd></button><hr><button data-m="del" class="danger">Delete ${many.length} cards <kbd>⌫</kbd></button></div>`, (p) => {
+			openPop(at, `<div class="evra-menu" data-selmenu><div class="meta">${many.length} cards selected</div>${swatchRow(null)}<button data-m="flip">Move to other side</button><button data-m="copy">Copy <kbd>Ctrl C</kbd></button><button data-m="dup">Duplicate <kbd>Ctrl D</kbd></button><button data-m="zoom">Zoom to them <kbd>Z</kbd></button><hr><button data-m="del" class="danger">Delete ${many.length} cards <kbd>⌫</kbd></button></div>`, (p) => {
 				bindSwatches(p, (id) => many.forEach((x) => (x.color = id)), true);
 				const on = (m: string, fn: () => void) => { q1(p, `[data-m=${m}]`).onclick = () => { closePop(); fn(); }; };
 				on('flip', () => { const b = snapshot(); many.forEach((x) => (x.side = x.side === 'a' ? 'b' : 'a')); commit(b); });
@@ -2530,7 +2531,7 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 		const U = S.cal.units;
 		const circaOpts: [number, string][] = [[0, 'Exact'], [ci().avgM, '± 1 ' + U.month], [dpy(), '± 1 ' + U.year], [dpy() * 5, '± 5 ' + U.years], [dpy() * 10, '± 10 ' + U.years], [dpy() * 50, '± 50 ' + U.years], [dpy() * 100, '± 100 ' + U.years]];
 		const pinTo = S.events.filter((x) => x.id !== ev.id && !dependsOn(x, ev.id)).sort((a, b) => a.t - b.t);
-		openPop(at, `<div class="evra-menu">${swatchRow(ev.color)}
+		openPop(at, `<div class="evra-menu" data-selmenu>${swatchRow(ev.color)}
 			${ev.file ? '' : '<button data-m="edit">Edit <kbd>↵</kbd></button>'}
 			${ev.file ? '<button data-m="open">Open note</button><button data-m="unlink">Unlink note</button>' : '<button data-m="convert">Convert to note</button><button data-m="link">Link to note…</button>'}
 			<div class="dl">Icon</div><div class="icons">${ICONS.map((g) => `<button data-icon="${g}" class="${ev.icon === g ? 'on' : ''}" aria-label="Icon ${g}">${g}</button>`).join('')}<button data-icon="" class="${ev.icon ? '' : 'on'}" aria-label="No icon">–</button></div>

@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.8.10 (beta)
+
+- An open card menu shows a color picked with the number keys.
+
 ## 0.8.9 (beta)
 
 - Delete or Backspace in a card menu deletes the card, as its hint says.
