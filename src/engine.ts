@@ -81,6 +81,37 @@ export function calInfo(cal: Calendar): CalInfo {
 export type Engine = ReturnType<typeof makeEngine>;
 
 /** Every date function, reading the calendar, eras and formats of whatever document getDoc returns. */
+/** Put eras back in order after their dates moved: each inside its parent, siblings in date order without overlapping,
+    and none empty. Worked top-down, so a parent is settled before its children are fitted into it. Only when a parent
+    has fewer days than children can some still overlap. */
+export function repairEras(eras: Era[]): void {
+	const kids = new Map<string | null, Era[]>(), ids = new Set(eras.map((e) => e.id));
+	for (const e of eras) { const k = e.parent != null && ids.has(e.parent) ? e.parent : null; kids.set(k, [...(kids.get(k) || []), e]); }
+	const seen = new Set<string>();
+	const fit = (parent: Era | null) => {
+		const list = (kids.get(parent ? parent.id : null) || []).filter((e) => !seen.has(e.id)).sort((a, b) => a.start - b.start || a.end - b.end);
+		const lo = parent ? parent.start : -Infinity, hi = parent ? parent.end : Infinity;
+		// forward: inside the parent, after the previous sibling, at least a day long
+		let floor = lo;
+		for (const e of list) {
+			e.start = Math.max(e.start, floor);
+			e.end = Math.max(Math.min(e.end, hi), e.start + 1);
+			floor = e.end;
+		}
+		// backward: whatever ran past the parent's end is pulled back, a day each if need be
+		let ceil = hi;
+		for (let i = list.length - 1; i >= 0 && list[i].end > ceil; i--) {
+			const e = list[i];
+			e.end = ceil;
+			if (e.start >= e.end) e.start = Math.max(lo, e.end - 1);
+			if (e.start >= e.end) e.end = e.start + 1; // no room left in the parent
+			ceil = e.start;
+		}
+		for (const e of list) { seen.add(e.id); fit(e); }
+	};
+	fit(null);
+}
+
 export function makeEngine(getDoc: () => EvraDoc) {
 	// Facts about each calendar (the document's, or an old copy being remapped) are computed once per calendar object.
 	// Anything that edits the months or leap rules in place calls reset().
@@ -267,7 +298,19 @@ export function makeEngine(getDoc: () => EvraDoc) {
 			if (e.end != null) e.end = Math.max(e.t + 1, f(e.end));
 			if (e.rel && e.rel.at != null) e.rel.at = f(e.rel.at); // where the anchor was last seen moves with it, or the pin would shift the card again
 		});
-		d.eras.forEach((e) => { e.start = f(e.start); e.end = Math.max(e.start + 1, f(e.end)); });
+		// Era edges: a year start stays a year start, and the end (the day after the era) goes where the era's last day goes, so a
+		// year-long era still ends at the year's end when months move. Moved or dropped months can still make eras overlap
+		// or leave their parents: repairEras puts them back in order.
+		const edge = (t: number, last: boolean) => {
+			const p = partsC(t, oldCal);
+			if (p.m === 0 && p.d === 0) return yearStartC(p.yr, newCal);
+			return last ? f(t - 1) + 1 : f(t);
+		};
+		d.eras.forEach((e) => {
+			const a = edge(e.start, false), b = edge(e.end, true);
+			[e.start, e.end] = a < b ? [a, b] : [Math.min(a, b - 1), Math.max(a + 1, b)]; // months swapped under it: cover both ends
+		});
+		repairEras(d.eras);
 	}
 	// Depths are cached against the eras array, its length and each era's id and parent (compared without allocating),
 	// so the many erasAt calls in one frame don't rebuild them. Treat the result as read-only.

@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.7.33 (beta)
+
+- Reordering, removing or shrinking months keeps eras inside their parents, in order and not empty.
+
 ## 0.7.32 (beta)
 
 - A negative-year word such as “BE” is only matched as a whole word, so months like September or Ember no longer make a year negative.
