@@ -1806,7 +1806,7 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 		if (b - a < 1) { toast('There’s no room for a new era there.'); return null; }
 		const used = S.eras.filter((s) => s.parent === pid).map((s) => s.color), color = (S.palette.find((p) => !used.includes(p.id)) || S.palette[0])?.id || null;
 		const before = snapshot(), era: Era = { id: uid(), parent: pid, name: 'New era', start: a, end: b, color };
-		S.eras.push(era); commit(before);
+		S.eras.push(era); if (!pid) ensureRange({ t: a, end: b }); commit(before); // a top-level era near the edge widens the range, like an event
 		return era;
 	}
 	function openGroupPanel(gid: string) {

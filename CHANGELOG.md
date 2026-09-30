@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.7.19 (beta)
+
+- “Add an era here” and dragging out a new era near the end of the range widen the range to hold the era.
+
 ## 0.7.18 (beta)
 
 - Dragging the edge of a top-level era that reaches past the timeline's range no longer shrinks it to one day.
