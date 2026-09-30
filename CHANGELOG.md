@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.7.29 (beta)
+
+- When two timelines sync the same note, an unrelated edit in one no longer rewrites the note and moves the other's card.
+
 ## 0.7.28 (beta)
 
 - Moving or renaming a folder of linked notes updates each closed timeline in one save instead of one per note.

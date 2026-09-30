@@ -4,6 +4,7 @@ import { renderEmbed } from './embed';
 import { emptyDoc, SAMPLE_COVER, SAMPLE_NOTES, sampleDoc } from './model';
 import { NoteCache } from './notes';
 import { DEFAULT_SETTINGS, EvraSettingTab, type EvraSettings } from './settings';
+import type { PropValue } from './sync';
 import { EvraView, linkMatchesPath, VIEW_TYPE } from './view';
 
 // the timeline icon: a line of time with marks on either side
@@ -13,6 +14,8 @@ export default class EvraPlugin extends Plugin {
 	settings: EvraSettings;
 	notes: NoteCache;
 	private noteLeaf: WorkspaceLeaf | null = null;
+	/** The last timeline properties Evra wrote to each note, and which open timeline wrote them. */
+	propWrites = new Map<string, { view: EvraView; props: Record<string, PropValue> }>();
 	private redrawT = 0;
 	private renames: [TFile, string][] = []; // note renames waiting to be applied to closed timelines
 	private renamed = new Set<EvraView>(); // open views already told about them
@@ -84,6 +87,8 @@ export default class EvraPlugin extends Plugin {
 	    (moving a folder renames every note in it, one event each: each closed timeline is then read and written once). */
 	private noteRenamed(file: TFile, oldPath: string) {
 		this.notes.renamed(oldPath);
+		const w = this.propWrites.get(oldPath);
+		if (w) { this.propWrites.delete(oldPath); this.propWrites.set(file.path, w); }
 		this.forEachView((v) => { v.noteRenamed(file, oldPath); this.renamed.add(v); });
 		this.renames.push([file, oldPath]);
 		window.clearTimeout(this.renameT);

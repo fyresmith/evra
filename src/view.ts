@@ -67,6 +67,7 @@ export class EvraView extends TextFileView {
 		}
 		if (!this.timeline || clear) this.mount(doc);
 		else this.timeline.setDoc(doc);
+		this.seedWanted(this.timeline.getDoc());
 	}
 
 	clear(): void { /* setViewData(…, true) replaces the timeline */ }
@@ -111,6 +112,7 @@ export class EvraView extends TextFileView {
 	async onClose(): Promise<void> {
 		window.clearTimeout(this.syncT);
 		await this.flush();
+		for (const [k, w] of this.plugin.propWrites) if (w.view === this) this.plugin.propWrites.delete(k);
 		this.timeline?.destroy();
 		this.timeline = null;
 		await super.onClose();
@@ -246,9 +248,10 @@ export class EvraView extends TextFileView {
 	}
 
 	/* Timeline properties in linked notes. Only notes this timeline links to, or has written to before, are touched. */
-	private async syncNotes(doc: EvraDoc) {
-		const sy = doc.opts.sync;
-		if (!sy || !sy.on || this.timeline?.getDoc() !== doc) return;
+	private wanted = new Map<string, string>(); // the properties this timeline last wanted each note to have
+
+	/** What each note's properties should be now, for the notes this timeline links to or has written to. */
+	private desiredWrites(doc: EvraDoc): { writes: [TFile, ReturnType<typeof desiredProps>][]; linked: string[] } {
 		const E = makeEngine(() => doc);
 		const byNote = new Map<string, { file: TFile; ev: EvraEvent }>();
 		[...doc.events].sort((a, b) => a.t - b.t).forEach((e) => {
@@ -258,20 +261,42 @@ export class EvraView extends TextFileView {
 		});
 		const writes: [TFile, ReturnType<typeof desiredProps>][] = [];
 		for (const { file, ev } of byNote.values()) writes.push([file, desiredProps(doc, E, ev)]);
-		for (const path of sy.notes || []) {
+		for (const path of doc.opts.sync.notes || []) {
 			if (byNote.has(path)) continue;
 			const f = this.app.vault.getFileByPath(path);
 			if (f) writes.push([f, desiredProps(doc, E, null)]); // unlinked notes lose their timeline properties
 		}
+		return { writes, linked: [...byNote.keys()] };
+	}
+
+	/** Remember what the timeline wants as it opens, so only later changes to it count as changes. */
+	private seedWanted(doc: EvraDoc) {
+		this.wanted.clear();
+		if (!doc.opts.sync.on) return;
+		for (const [f, props] of this.desiredWrites(doc).writes) this.wanted.set(f.path, JSON.stringify(props));
+	}
+
+	private async syncNotes(doc: EvraDoc) {
+		const sy = doc.opts.sync;
+		if (!sy || !sy.on || this.timeline?.getDoc() !== doc) return;
+		const { writes, linked } = this.desiredWrites(doc), shared = this.plugin.propWrites;
 		for (const [file, props] of writes) {
+			const key = JSON.stringify(props), same = this.wanted.get(file.path) === key;
+			this.wanted.set(file.path, key);
 			const fm = this.app.metadataCache.getFileCache(file)?.frontmatter as Record<string, unknown> | undefined;
 			if (!needsWrite(fm, props)) continue;
-			try { await this.app.fileManager.processFrontMatter(file, (m: Record<string, unknown>) => { applyProps(m, props); }); this.ownWrites.set(file.path, props); }
-			catch (err) { console.error('Evra: couldn’t update the properties of', file.path, err); }
+			// Another open timeline wrote this note since, and this timeline's card for it hasn't changed: leave the note as it
+			// is. Otherwise every edit in either timeline would rewrite the notes they share, and move the other's cards.
+			const last = shared.get(file.path);
+			if (same && last && last.view !== this && !needsWrite(fm, last.props)) continue;
+			try {
+				await this.app.fileManager.processFrontMatter(file, (m: Record<string, unknown>) => { applyProps(m, props); });
+				this.ownWrites.set(file.path, props); shared.set(file.path, { view: this, props });
+			} catch (err) { console.error('Evra: couldn’t update the properties of', file.path, err); }
 		}
-		const written = liveFields(doc).map((x) => x[1]), notes = [...byNote.keys()];
-		if (JSON.stringify([written, notes]) !== JSON.stringify([sy.written, sy.notes])) {
-			sy.written = written; sy.notes = notes;
+		const written = liveFields(doc).map((x) => x[1]);
+		if (JSON.stringify([written, linked]) !== JSON.stringify([sy.written, sy.notes])) {
+			sy.written = written; sy.notes = linked;
 			this.requestSave();
 		}
 	}
@@ -333,6 +358,8 @@ export class EvraView extends TextFileView {
 			}
 		});
 		if (doc.opts.sync.notes) doc.opts.sync.notes = doc.opts.sync.notes.map((p) => (p === oldPath ? file.path : p));
+		const w = this.wanted.get(oldPath);
+		if (w != null) { this.wanted.delete(oldPath); this.wanted.set(file.path, w); }
 		if (changed) { this.requestSave(); this.timeline.notesChanged(); }
 		return changed;
 	}

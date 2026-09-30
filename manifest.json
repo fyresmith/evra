@@ -1,7 +1,7 @@
 {
 	"id": "evra",
 	"name": "Evra",
-	"version": "0.7.28",
+	"version": "0.7.29",
 	"minAppVersion": "1.6.0",
 	"description": "Worldbuilding timelines with custom calendars, nested eras, story threads and linked notes.",
 	"author": "Caleb Smith",
