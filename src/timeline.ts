@@ -2642,7 +2642,7 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 	/* ---------- keyboard: only while the timeline has focus ---------- */
 	// root outlives this timeline (the view remounts into it when another file opens there), so the listener must go with it
 	const onKey = (e: KeyboardEvent) => {
-		if (!pal.hidden || e.defaultPrevented) return;
+		if (!pal.hidden || (e.defaultPrevented && e.key !== 'Escape')) return; // Obsidian claims Escape on a focused checkbox, but here it should still close the panel
 		if (!pop.hidden && pop.contains(e.target as Node)) { // inside a menu: arrows move between its controls, and Escape closes it
 			if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); closePop(); return; }
 			const tag = (e.target as HTMLElement).tagName;
@@ -2660,6 +2660,7 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 		// a checkbox, slider or dropdown has no text undo of its own, so Ctrl/Cmd Z and Y still undo the timeline there
 		const texty = tg.isContentEditable || tg.tagName === 'TEXTAREA' || (tg.tagName === 'INPUT' && !/^(checkbox|radio|range|color|button)$/.test((tg as HTMLInputElement).type));
 		if (typing && !texty && mod && (k === 'z' || k === 'y')) { done(); if (k === 'y' || e.shiftKey) redoF(); else undo(); return; }
+		if (typing && !texty && e.key === 'Escape' && !sheet.hidden) { e.stopPropagation(); closeSheet(); return; }
 		if (typing) return;
 		if (drag && drag.type !== 'pan' && drag.moved && !/^(Alt|Shift|Escape)$/.test(e.key)) { done(); return; } // keys mid-drag would edit what the drag is about to commit
 		if (mod && k === 'z') { done(); if (e.shiftKey) redoF(); else undo(); return; }

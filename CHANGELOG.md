@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.7.26 (beta)
+
+- Escape closes the settings panel even right after ticking a checkbox.
+
 ## 0.7.25 (beta)
 
 - When the file changes outside the view (another pane saves, or an external edit), a card drag in progress stops and open menus close, instead of throwing errors or editing cards that are gone.
