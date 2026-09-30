@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.7.41 (beta)
+
+- Create cards from notes lists the best-dated notes first, ticks only strong candidates, shows a count with “and N more”, has Tick all / Untick all, and its button counts the ticked notes.
+
 ## 0.7.40 (beta)
 
 - Tab cycles through an open card menu's controls, and Escape always closes it.

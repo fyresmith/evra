@@ -2058,6 +2058,25 @@
 	flex-direction: column;
 	gap: 10px;
 }
+.evra-root.evra-view .cfnhead {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	margin-bottom: 6px;
+	font-size: 12px;
+	color: var(--evra-muted);
+}
+.evra-root.evra-view .cfnhead span {
+	flex: 1;
+}
+/* big vaults list hundreds of notes: scroll them in place so the rest of the tab stays in reach */
+.evra-root.evra-view .cfnlist {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	max-height: 320px;
+	overflow-y: auto;
+}
 .evra-root.evra-view .cfn-date {
 	color: var(--evra-muted);
 	font-family: var(--evra-f-mono);

@@ -1,9 +1,9 @@
 import { TIMELINE_COMMANDS } from './commands';
 import { attr, closest, q1, qa, setHTML, svgEl, type SvgEl } from './dom';
-import { cap, clamp, DEFAULT_FMT, eraAbbr, esc, makeEngine, TOKENS, tpl, uid } from './engine';
+import { cap, clamp, DEFAULT_FMT, eraAbbr, esc, makeEngine, str, TOKENS, tpl, uid } from './engine';
 import type { TimelineHost } from './host';
 import { DEFAULT_UNITS, defaultPalette, normCal, normDoc, okDay, parseCalendarImport, PRESETS, SYNC_FIELDS } from './model';
-import { dateFromProps, noteDateOf, syncValue } from './sync';
+import { dateFromProps, noteDateOf, readsAsDate, syncValue } from './sync';
 import { DESC_MAX, inline, noteExcerpt, plainOf } from './text';
 import type { Era, EvraDoc, EvraEvent, Orientation, SavedView, Side } from './types';
 
@@ -1910,14 +1910,13 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 		} else if (sheetTab === 'notes') {
 			const sy = o.sync, sample = S.events.find((e) => e.id === sel && e.file) || [...S.events].sort((a, b) => a.t - b.t).find((e) => e.file);
 			const shown = sample ? SYNC_FIELDS.filter(([k]) => sy.fields[k].on && sy.fields[k].key.trim()).map(([k]) => { const v = syncValue(k, sample, S, E); return v == null || (Array.isArray(v) && !v.length) ? '' : `${sy.fields[k].key.trim()}: ${Array.isArray(v) ? `[${v.join(', ')}]` : String(v)}`; }).filter(Boolean).join('\n') : '';
-			const cands = candidates();
 			h = `<section><h4>Linked notes</h4><label class="chk"><input type="checkbox" data-k="syOn" ${sy.on ? 'checked' : ''}> Write timeline properties into linked notes</label>
 			<p class="note">Adds properties to each linked note and keeps them current as you move its card, change eras or edit the calendar. Editing the year, month or day in a note moves its card. Only notes linked from this timeline are changed.</p></section>
 			<section class="${sy.on ? '' : 'off'}"><h4>Properties to sync</h4><div class="syhead"><span></span><span>Field</span><span>Property name</span></div>
 			${SYNC_FIELDS.map(([k, label]) => `<div class="syrow"><input type="checkbox" data-syf="${k}" ${sy.fields[k].on ? 'checked' : ''} aria-label="Sync ${esc(label)}"><span>${esc(label)}</span><input type="text" data-syk="${k}" value="${esc(sy.fields[k].key)}" spellcheck="false" aria-label="Property name for ${esc(label)}"></div>`).join('')}
 			${sample ? `<div class="fld"><span>How “${esc(titleOf(sample))}” will start</span><pre class="fmprev">${esc(shown ? `---\n${shown}\n---` : 'No properties selected')}</pre></div>` : '<p class="note">Link a note to a card to see a preview.</p>'}</section>
 			<section><h4>Create cards from notes</h4><p class="note">Finds notes that aren’t on the timeline yet but have a year (and optionally month and day) in their properties, or a date like “14 Frost 412”.</p>
-			<div class="cfn">${cands.length ? `${cands.slice(0, 200).map((x) => `<label class="chk"><input type="checkbox" data-cfn="${esc(x.link)}" ${x.tick ? 'checked' : ''}> ${esc(x.title)} <small class="cfn-date">${esc(fmt(x.t))}</small></label>`).join('')}<div class="rowx"><button class="btn" data-k="cfnGo">Create ${Math.min(200, cands.length)} card${cands.length === 1 ? '' : 's'}</button></div>` : '<p class="note">No dated notes are waiting.</p>'}</div></section>
+			<div class="cfn"></div></section>
 			<section><h4>Clean up</h4><div class="rowx"><button class="btn" data-k="syStrip">Remove timeline properties from linked notes</button></div><p class="note">Turning sync off leaves notes as they are. Use this to take the properties back out.</p></section>`;
 		} else {
 			h = `<section><h4>Size</h4><label class="fld"><span>Card width <output class="cwv">${S.cardWidth || 240}px</output></span><input type="range" min="160" max="360" step="10" data-k="cw" value="${S.cardWidth || 240}"></label>
@@ -1936,8 +1935,8 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 		if (again) again.focus({ preventScroll: true });
 		else if (hadFocus && !sheet.contains(doc().activeElement)) sheetBody.focus({ preventScroll: true }); // keep keyboard shortcuts working
 		qa(sheetBody, '.mrow').forEach((r) => (r.draggable = true));
-		sheetBody.scrollTop = scroll;
 		bindSheet();
+		sheetBody.scrollTop = scroll; // after binding: some sections fill themselves in
 	}
 	// Every control applies live. Text fields record one undo step per edit, when they lose focus.
 	function bindSheet() {
@@ -2164,11 +2163,7 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 			if (!v) { el.value = S.opts.sync.fields[key].key; toast('A property needs a name.'); return; }
 			step(() => { S.opts.sync.fields[key].key = v; }); renderSheet();
 		}));
-		const cg = k('cfnGo');
-		if (cg) cg.onclick = () => {
-			const links = new Set(qq<HTMLInputElement>('[data-cfn]').filter((x) => x.checked).map((x) => x.dataset.cfn));
-			createFromNotes(candidates().filter((x) => links.has(x.link))); renderSheet();
-		};
+		if (sheetTab === 'notes') { cfnSig = ''; refreshCfn(); win().clearInterval(cfnT); cfnT = win().setInterval(refreshCfn, 1500); }
 		const sst = k('syStrip');
 		if (sst) sst.onclick = () => { void host.stripSyncedProps(S).then((n) => toast(n ? `Removed timeline properties from ${n} note${n === 1 ? '' : 's'}.` : 'No notes had timeline properties.')); };
 		const ot = k<HTMLInputElement>('oTint'); if (ot) ot.onchange = () => step(() => { S.opts.tint = ot.checked; });
@@ -2341,12 +2336,58 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 	}
 
 	/* ---------- creating cards from notes ---------- */
+	// Dated notes not on this timeline. Strong ones (timeline properties, or a month, day or date in this calendar) come first and
+	// start ticked; a bare year (books, films…) only when there are few; notes dated in another calendar (a month or era this
+	// one doesn't have, e.g. synced from another timeline) come last and unticked. Big vaults list the first CFN_MAX.
 	function candidates() {
-		const linked = new Set(S.events.map((e) => e.file).filter(Boolean));
-		// notes carrying timeline properties are ticked at first; ones with just a generic year or date (books, films…) only when there are few
-		const keys = new Set(['timeline', ...Object.values(S.opts.sync.fields).map((f) => f.key.toLowerCase())].filter((k) => k.startsWith('timeline')));
-		const list = host.candidateNotes(linked).map((x) => ({ link: x.link, title: x.title, t: noteDateOf(x.props, S, E), strong: Object.keys(x.props).some((k) => keys.has(k.toLowerCase())) })).filter((x) => x.t != null).sort((a, b) => a.t - b.t);
-		return list.map((x) => ({ ...x, tick: x.strong || list.length <= 12 }));
+		const linked = new Set(S.events.map((e) => e.file).filter(Boolean)), f = S.opts.sync.fields;
+		const tlKeys = new Set(['timeline', ...Object.values(f).map((x) => x.key.toLowerCase())].filter((k) => k.startsWith('timeline')));
+		const months = new Set(S.cal.months.map((_, j) => E.monthName(j).toLowerCase())), eras = new Set(S.eras.map((x) => x.name.toLowerCase())), M = S.cal.months.length;
+		const list: { link: string; title: string; t: number; rank: number; tick?: boolean }[] = [];
+		for (const x of host.candidateNotes(linked)) {
+			const t = noteDateOf(x.props, S, E);
+			if (t == null) continue;
+			const low: Record<string, unknown> = {};
+			for (const k in x.props) low[k.toLowerCase()] = x.props[k];
+			const pick = (...ks: string[]) => ks.map((k) => low[k.toLowerCase()]).find((v) => v != null && v !== '');
+			const m = pick(f.month.key, 'month'), d = pick(f.day.key, 'day'), ds = pick(f.date.key, 'date'), er = low[f.era.key.toLowerCase()], tds = low[f.date.key.toLowerCase()];
+			const ms = str(m).trim().toLowerCase(), mn = /^\d+$/.test(ms) ? +ms : NaN;
+			const foreign = (m != null && !(months.has(ms) || mn >= 1 && mn <= M)) || (typeof er === 'string' && er && !eras.has(er.toLowerCase())) || (typeof tds === 'string' && tds && !readsAsDate(tds, S, E));
+			const strong = !foreign && (Object.keys(low).some((k) => tlKeys.has(k)) || m != null || d != null || (typeof ds === 'string' && !/^-?\d{1,9}[-/]\d/.test(ds.trim()) && readsAsDate(ds, S, E)));
+			list.push({ link: x.link, title: x.title, t, rank: foreign ? 2 : strong ? 0 : 1 });
+		}
+		list.sort((a, b) => a.rank - b.rank || a.t - b.t);
+		const own = list.filter((x) => x.rank < 2).length;
+		list.forEach((x) => (x.tick = x.rank === 0 || (x.rank === 1 && own <= 12)));
+		return list;
+	}
+	const CFN_MAX = 200;
+	let cfnSig = '', cfnT = 0;
+	const cfnPick = new Map<string, boolean>(); // ticks the user changed, kept across refreshes
+	// The list redraws only when the dated notes change (a new note's properties arrive a moment after it's created)
+	function refreshCfn() {
+		const box = !sheet.hidden && sheetTab === 'notes' && q1(sheetBody, '.cfn');
+		if (!box || destroyed) { win().clearInterval(cfnT); return; }
+		const all = candidates(), sig = all.map((x) => x.link + '@' + x.t + x.rank).join('|');
+		if (sig === cfnSig) return;
+		cfnSig = sig;
+		const shown = all.slice(0, CFN_MAX), more = all.length - shown.length, other = all.filter((x) => x.rank === 2).length;
+		const focused = box.contains(doc().activeElement) ? (doc().activeElement as HTMLElement).dataset.cfn : null;
+		setHTML(box, all.length ? `<div class="cfnhead"><span>${all.length} dated note${all.length === 1 ? '' : 's'}${other ? ` · ${other} dated in another calendar, listed last` : ''}</span><button class="tbtn" data-k="cfnAll">Tick all</button><button class="tbtn" data-k="cfnNone">Untick all</button></div>
+			<div class="cfnlist">${shown.map((x) => `<label class="chk"><input type="checkbox" data-cfn="${esc(x.link)}" ${cfnPick.get(x.link) ?? x.tick ? 'checked' : ''}> ${esc(x.title)} <small class="cfn-date">${esc(fmt(x.t))}</small></label>`).join('')}</div>
+			${more ? `<p class="note">…and ${more} more. Create or untick these to work through the rest.</p>` : ''}<div class="rowx"><button class="btn" data-k="cfnGo"></button></div>` : '<p class="note">No dated notes are waiting.</p>');
+		const boxes = qa<HTMLInputElement>(box, '[data-cfn]'), go = q1<HTMLButtonElement>(box, '[data-k=cfnGo]');
+		const count = () => { if (!go) return; const n = boxes.filter((b) => b.checked).length; go.textContent = `Create ${n} card${n === 1 ? '' : 's'}`; go.disabled = !n; };
+		boxes.forEach((b) => { b.onchange = () => { cfnPick.set(b.dataset.cfn, b.checked); count(); }; if (b.dataset.cfn === focused) b.focus({ preventScroll: true }); });
+		const all1 = (on: boolean) => { boxes.forEach((b) => { b.checked = on; cfnPick.set(b.dataset.cfn, on); }); count(); };
+		const ta = q1(box, '[data-k=cfnAll]'), tn = q1(box, '[data-k=cfnNone]');
+		if (ta) ta.onclick = () => all1(true);
+		if (tn) tn.onclick = () => all1(false);
+		if (go) go.onclick = () => {
+			const links = new Set(boxes.filter((x) => x.checked).map((x) => x.dataset.cfn));
+			cfnPick.clear(); createFromNotes(all.filter((x) => links.has(x.link))); renderSheet();
+		};
+		count();
 	}
 	function createFromNotes(list: { link: string; t: number }[]) {
 		if (!list.length) return;
@@ -2765,7 +2806,7 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 			destroyed = true;
 			if (editing) finishEdit(true);
 			win().cancelAnimationFrame(rafId); win().cancelAnimationFrame(animId);
-			[toastT, flashT, viewSaveT, peekT, groupClickT].forEach((t) => win().clearTimeout(t));
+			[toastT, flashT, viewSaveT, peekT, groupClickT].forEach((t) => win().clearTimeout(t)); win().clearInterval(cfnT);
 			ro.disconnect(); mmRo.disconnect();
 			cleanups.forEach((f) => f());
 			root.empty();
