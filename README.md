@@ -1,5 +1,7 @@
 # Evra
 
+> **Beta (0.4.0).** Evra is new, so expect rough edges. Back up your vault, and please [report problems](https://github.com/fyresmith/evra/issues).
+
 Evra is a timeline plugin for Obsidian, built for worldbuilding. You can build a history on your own calendar, divide it into nested eras, and follow long stories as threads beside the line. Cards can link to your notes.
 
 ![A timeline in Evra](docs/images/timeline-light.png)
@@ -42,7 +44,11 @@ Evra is a timeline plugin for Obsidian, built for worldbuilding. You can build a
 
 ## Getting started
 
-1. Install Evra from **Settings → Community plugins → Browse**, then turn it on.
+1. Install Evra. While it is in beta, it isn't in Obsidian's community plugin list yet. Either:
+   - install the [BRAT](https://github.com/TfTHacker/obsidian42-brat) plugin, then add the beta plugin `fyresmith/evra`; or
+   - download `main.js`, `manifest.json` and `styles.css` from the [latest release](https://github.com/fyresmith/evra/releases) into `<your vault>/.obsidian/plugins/evra/`.
+
+   Then turn Evra on in **Settings → Community plugins**.
 2. To make a timeline, use the **New timeline** command or the ribbon button. You can also right-click a folder and choose **New timeline**.
 3. To look around first, run **Open the sample timeline**. It opens a small world with eras, spans and linked notes.
 

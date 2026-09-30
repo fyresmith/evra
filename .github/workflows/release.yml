@@ -28,5 +28,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          flags="--draft"
+          case "${GITHUB_REF_NAME}" in 0.*) flags="$flags --prerelease";; esac
           gh release create "${GITHUB_REF_NAME}" main.js manifest.json styles.css \
-            --draft --title "${GITHUB_REF_NAME}" --notes "See CHANGELOG.md for what's new."
+            $flags --title "${GITHUB_REF_NAME}" --notes "See CHANGELOG.md for what's new."

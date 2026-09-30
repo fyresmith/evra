@@ -27,7 +27,7 @@ Year numbers in `range` and in `from` and `to` in embeds are the calendar's inte
 	"views": [ … ],            // optional: saved views
 	"lastView": [10440, 16920],// optional: the starting view for a new window (days)
 
-	// Reserved for sub-timelines (planned). Evra 1.x keeps these but doesn't use them yet.
+	// Reserved for sub-timelines (planned). Evra keeps these but doesn't use them yet.
 	"parent": "[[World]]",     // a link to the parent timeline
 	"kind": "scope",           // "scope" (a part of the parent) or "branch" (a fork)
 	"forkAt": 12000            // for branches: the day the branch splits off
@@ -135,6 +135,6 @@ A leap rule adds `days` to month `month` in year *y* when *y* − `off` is a mul
 
 ## Compatibility
 
-- Future 1.x versions will only add optional fields.
+- Later versions of format 1 will only add optional fields.
 - Evra keeps fields it doesn't recognize.
 - A change that older versions couldn't read would raise `version`.

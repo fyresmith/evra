@@ -1,8 +1,8 @@
 # Changelog
 
-## 1.0.0
+## 0.4.0 (beta)
 
-This is the first release.
+The first public beta.
 
 - Timelines saved as `.evra` files, running in four directions.
 - Cards that sit exactly on their dates, stacking snugly and scrolling across instead of shrinking. Crowded years collapse into group cards, and cards turn compact or into dots as you zoom out.
