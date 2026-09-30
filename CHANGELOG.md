@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.7.15 (beta)
+
+- “Add a span here” and “New span” are undone in one step with their name, like new events.
+
 ## 0.7.14 (beta)
 
 - Titles and descriptions cut at their length limit no longer end in half an emoji.

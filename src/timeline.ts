@@ -1675,6 +1675,7 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 				closePop();
 				const before = snapshot(), ev: EvraEvent = { id: uid(), t, end: t + len, side, title: 'New span', text: '', color: null, file: null };
 				fresh.add(ev.id); S.events.push(ev); ensureRange(ev); sel = ev.id; commit(before);
+				justAdded = { id: ev.id, before };
 				raf(() => startEdit(ev.id));
 			};
 			q1(p, '[data-m=addera]').onclick = () => { closePop(); const era = createEra(t, t + len); if (era) openEraEditor(era.id, L); };
@@ -2569,6 +2570,7 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 				const before = snapshot(), side: Side = S.events.filter((x) => x.side === 'a').length < S.events.filter((x) => x.side === 'b').length ? 'a' : 'b';
 				const ev: EvraEvent = { id: uid(), t: a, end: b, side, title: 'New span', text: '', color: null, file: null };
 				fresh.add(ev.id); S.events.push(ev); sel = ev.id; commit(before);
+				justAdded = { id: ev.id, before };
 				raf(() => startEdit(ev.id));
 			};
 		});
