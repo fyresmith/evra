@@ -103,7 +103,7 @@ function hslHex(h: number, s: number, l: number) {
 	return '#' + [f(0), f(8), f(4)].map((x) => Math.round(x * 255).toString(16).padStart(2, '0')).join('');
 }
 
-const MARKUP = `<div class="stage" data-r="stage" tabindex="0" aria-label="Timeline">
+const MARKUP = `<div class="stage" data-r="stage" tabindex="0" role="application" aria-roledescription="timeline">
 <svg class="lines" data-r="svg"></svg>
 <div class="cards" data-r="cards"></div>
 <div class="ui empty" data-r="empty" hidden><p>Double-click beside the line to add an event. Drag along the line to create an era or a span.</p></div>
@@ -112,15 +112,15 @@ const MARKUP = `<div class="stage" data-r="stage" tabindex="0" aria-label="Timel
 <button class="ui xbtn" data-r="extE" hidden></button>
 <div class="ui hint" data-r="hint">Double-click to add · Drag along the line for an era or span · Ctrl/⌘ + scroll to zoom</div>
 <div class="ui ctrls" data-r="ctrls">
-<button class="ibtn" data-c="in" title="Zoom in (+)" aria-label="Zoom in"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M8 3v10M3 8h10"/></svg></button>
-<button class="ibtn" data-c="out" title="Zoom out (−)" aria-label="Zoom out"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M3 8h10"/></svg></button>
-<button class="ibtn" data-c="fit" title="Fit everything (F)" aria-label="Fit everything"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 6V2.5H6M10 2.5h3.5V6M13.5 10v3.5H10M6 13.5H2.5V10"/></svg></button>
-<button class="ibtn" data-c="views" data-pop-toggle title="Saved views" aria-label="Saved views"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M4 2.5h8v11l-4-3-4 3z"/></svg></button>
-<button class="ibtn" data-c="filter" data-pop-toggle title="Filter" aria-label="Filter"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M2.5 3h11L9.5 8.5V13l-3-1.5v-3z"/></svg></button>
+<button class="ibtn" data-c="in" aria-label="Zoom in (+)"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M8 3v10M3 8h10"/></svg></button>
+<button class="ibtn" data-c="out" aria-label="Zoom out (−)"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M3 8h10"/></svg></button>
+<button class="ibtn" data-c="fit" aria-label="Fit everything (F)"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 6V2.5H6M10 2.5h3.5V6M13.5 10v3.5H10M6 13.5H2.5V10"/></svg></button>
+<button class="ibtn" data-c="views" data-pop-toggle aria-label="Saved views"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M4 2.5h8v11l-4-3-4 3z"/></svg></button>
+<button class="ibtn" data-c="filter" data-pop-toggle aria-label="Filter"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M2.5 3h11L9.5 8.5V13l-3-1.5v-3z"/></svg></button>
 <hr>
-<button class="ibtn" data-c="orient" title="Change direction" aria-label="Change direction"><svg data-r="orientIcon" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v12M4 10l4 4 4-4"/></svg></button>
-<button class="ibtn" data-c="settings" data-pop-toggle title="Timeline settings" aria-label="Timeline settings"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M2.5 4.5h6M11.5 4.5h2M2.5 11.5h2M7.5 11.5h6"/><circle cx="10" cy="4.5" r="1.6"/><circle cx="6" cy="11.5" r="1.6"/></svg></button>
-<button class="ibtn" data-c="help" data-pop-toggle title="Shortcuts" aria-label="Shortcuts"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M6 6.2a2 2 0 1 1 2.8 1.8c-.5.3-.8.7-.8 1.3v.4"/><circle cx="8" cy="12" r=".6" fill="currentColor"/></svg></button>
+<button class="ibtn" data-c="orient" aria-label="Change direction"><svg data-r="orientIcon" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v12M4 10l4 4 4-4"/></svg></button>
+<button class="ibtn" data-c="settings" data-pop-toggle aria-label="Timeline settings"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M2.5 4.5h6M11.5 4.5h2M2.5 11.5h2M7.5 11.5h6"/><circle cx="10" cy="4.5" r="1.6"/><circle cx="6" cy="11.5" r="1.6"/></svg></button>
+<button class="ibtn" data-c="help" data-pop-toggle aria-label="Shortcuts"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M6 6.2a2 2 0 1 1 2.8 1.8c-.5.3-.8.7-.8 1.3v.4"/><circle cx="8" cy="12" r=".6" fill="currentColor"/></svg></button>
 </div>
 <div class="ui fade" data-r="fadeA" hidden></div>
 <div class="ui fade" data-r="fadeB" hidden></div>
@@ -1295,6 +1295,7 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 
 	/* ---------- pointer ---------- */
 	const elLeftTop = (ce: HTMLElement, L: Local): At => (ce ? { x: px(ce, 'left'), y: px(ce, 'top') } : { x: L.x, y: L.y });
+	const capture = (id: number) => { try { stage.setPointerCapture(id); } catch { /* the pointer is already gone */ } };
 	stage.addEventListener('pointerenter', () => { stageRect = null; });
 	stage.addEventListener('pointerdown', (e) => {
 		stageRect = null;
@@ -1321,7 +1322,7 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 				sel = null; invalidate();
 				drag = { type: 'group', id, year: g.year, members: g.members.map((m) => ({ id: m.id, t: m.t })), start: L, el0, free: { ...el0 }, before: snapshot(), moved: false, armed: e.pointerType !== 'touch' };
 				if (!drag.armed) drag.timer = later(() => { if (drag && drag.type === 'group' && !drag.moved) drag.armed = true; }, 260);
-				stage.setPointerCapture(e.pointerId);
+				capture(e.pointerId);
 				return;
 			}
 			if (e.shiftKey) {
@@ -1338,7 +1339,7 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 			const el0 = elLeftTop(ce, L);
 			drag = { type: 'card', id, together, start: L, el0, free: { ...el0 }, before: snapshot(), orig: { t: ev.t, end: ev.end, side: ev.side }, moved: false, armed: e.pointerType !== 'touch' };
 			if (!drag.armed) drag.timer = later(() => { if (drag && drag.type === 'card' && !drag.moved) { drag.armed = true; if (ce) ce.addClass('dragging'); } }, 260);
-			stage.setPointerCapture(e.pointerId);
+			capture(e.pointerId);
 			return;
 		}
 		if (editing) finishEdit(true);
@@ -1358,7 +1359,7 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 			drag = { type: 'pan', start: L, v0: V.v0, x0: V.x, moved: false };
 			drag.timer = later(() => { if (drag && drag.type === 'pan' && !drag.moved) { drag = null; openContextAt(L, tgt); } }, 550);
 		} else drag = { type: 'pan', start: L, v0: V.v0, x0: V.x, moved: false, era: attr(e.target, 'data-era'), thread: attr(e.target, 'data-thread') };
-		stage.setPointerCapture(e.pointerId);
+		capture(e.pointerId);
 		invalidate();
 	});
 	stage.addEventListener('pointermove', (e) => {

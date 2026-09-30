@@ -85,6 +85,15 @@
 	outline: none;
 }
 
+/* Obsidian shows a tooltip for anything with an accessible label. On the timeline surface, cards and form
+   fields that would just repeat what's on screen, so tooltips stay on for buttons only. */
+.evra-root.evra-view {
+	--no-tooltip: true;
+}
+.evra-root.evra-view :is(button, label.swb, label.pchip, .minimap) {
+	--no-tooltip: false;
+}
+
 /* Form controls start from the browser's own look, not Obsidian's, and are styled below. */
 .evra-root.evra-view :is(button, input, select, textarea, kbd, hr) {
 	all: revert;

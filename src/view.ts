@@ -1,4 +1,4 @@
-import { Keymap, Notice, TextFileView, TFile, type WorkspaceLeaf, type ViewStateResult } from 'obsidian';
+import { Keymap, Notice, Scope, TextFileView, TFile, type WorkspaceLeaf, type ViewStateResult } from 'obsidian';
 import { makeEngine } from './engine';
 import type { TimelineHost } from './host';
 import { emptyDoc, normDoc } from './model';
@@ -25,6 +25,9 @@ export class EvraView extends TextFileView {
 		super(leaf);
 		// Not plain text: Obsidian then leaves the file out of its word count and never tries to merge outside edits line by line (like Canvas)
 		(this as unknown as { isPlaintext: boolean }).isPlaintext = false;
+		// Keys Obsidian would otherwise take for its own commands while a timeline has focus
+		this.scope = new Scope(this.app.scope);
+		this.scope.register(['Mod'], 'k', () => { this.timeline?.run('search'); return false; });
 		this.redoBtn = this.addAction('redo-2', 'Redo', () => this.timeline?.redo());
 		this.undoBtn = this.addAction('undo-2', 'Undo', () => this.timeline?.undo());
 		this.updateUndo();

@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.4.5 (beta)
+
+- No more stray tooltips: Obsidian shows one for anything with an accessible label, so hovering the timeline showed "Timeline". Tooltips now appear only on buttons, and they include the shortcut ("Zoom in (+)").
+- Ctrl/⌘ K is claimed by the timeline while it has focus, so Obsidian's own hotkeys can't take it first.
+
 ## 0.4.4 (beta)
 
 - Obsidian's word count no longer counts a timeline file's raw data (Evra views are marked as not plain text, like Canvas). This also stops Obsidian from trying to merge outside edits to the file line by line.
