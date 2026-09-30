@@ -2866,7 +2866,7 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 			invalidate();
 		},
 		getDoc: () => S,
-		run(id: string) { const f = ACTIONS[id]; if (f && G) { root.focus(); f(); } },
+		run(id: string) { const f = ACTIONS[id]; if (f && G && !(drag && drag.type !== 'pan' && drag.moved)) { root.focus(); f(); } }, // commands mid-drag would edit what the drag is about to commit
 		undo, redo: redoF,
 		canUndo: () => hist.length > 0,
 		canRedo: () => redo.length > 0,

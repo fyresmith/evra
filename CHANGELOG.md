@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.8.21 (beta)
+
+- Ctrl/⌘ D and other commands do nothing in the middle of a drag.
+
 ## 0.8.20 (beta)
 
 - E edits the selected card again after a toolbar button was clicked (Enter on a focused button still presses it).
