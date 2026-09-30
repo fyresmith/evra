@@ -47,4 +47,20 @@ const ev = (d: EvraDoc, id: string) => d.events.find((e) => e.id === id);
 	const r2 = normDoc(mergeDocs(clone(r), o2, t2));
 	ok(ev(r2, 'b').end == null && ev(r2, 'b').title === 'B!', 'a key removed here stays removed');
 }
+// order: theirs, unless this side reordered (a month dragged), then ours with their new items after
+{
+	const o = clone(base), t = clone(base);
+	const [m0, m1, m2] = o.cal.months; o.cal.months.splice(0, 3, m1, m2, m0);
+	t.cal.months[5].name = 'Renamed outside';
+	t.cal.months.push({ id: 'new', name: 'Added outside', days: 30 });
+	const r = m(o, t), ids = r.cal.months.map((x) => x.id);
+	eq(ids.slice(0, 3).join(), [m1.id, m2.id, m0.id].join(), 'a local reorder is kept');
+	ok(r.cal.months[5].name === 'Renamed outside' && ids[ids.length - 1] === 'new', 'with the outside rename and new month');
+	const o2 = clone(base), t2 = clone(base);
+	t2.cal.months.reverse(); o2.cal.months[0].name = 'Renamed here';
+	const r2 = m(o2, t2);
+	ok(r2.cal.months[0].id === t2.cal.months[0].id && r2.cal.months.some((x) => x.name === 'Renamed here'), 'an outside reorder is taken when this side only renamed');
+	const o3 = clone(base); o3.cal.months.splice(1, 1);
+	eq(m(o3, clone(base)).cal.months.length, 11, 'a local delete isn\'t a reorder');
+}
 done('merge');

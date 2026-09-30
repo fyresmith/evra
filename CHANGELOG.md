@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.8.25 (beta)
+
+- Merging an outside edit keeps months or colors you reordered but hadn't saved yet.
+
 ## 0.8.24 (beta)
 
 - 57 new end-to-end tests checking the round-2 fixes for regressions, including phone-width layouts in every direction.

@@ -335,8 +335,16 @@ export function mergeDocs(base: unknown, ours: unknown, theirs: unknown): unknow
 		const out: unknown[] = [];
 		// kept unless the other side deleted it without this side changing it
 		const keep = (x: { id: string }) => !bm.has(x.id) || !sameJSON(bm.get(x.id), x);
-		for (const x of theirs) { if (om.has(x.id)) out.push(mergeDocs(bm.get(x.id), om.get(x.id), x)); else if (keep(x)) out.push(x); }
-		for (const x of ours) if (!tm.has(x.id) && keep(x)) out.push(x);
+		// the order is theirs unless this side reordered (months, colors…): then ours, with their new items after
+		const order = (l: { id: string }[]) => l.filter((x) => bm.has(x.id)).map((x) => x.id).join('\n');
+		const baseOrder = idList(base) ? order(base.filter((x) => om.has(x.id))) : '';
+		const [first, second, firstOurs] = baseOrder !== order(ours) ? [ours, theirs, true] : [theirs, ours, false];
+		const inFirst = firstOurs ? om : tm;
+		for (const x of first) {
+			const o = om.get(x.id), t = tm.get(x.id);
+			if (o && t) out.push(mergeDocs(bm.get(x.id), o, t)); else if (keep(x)) out.push(x);
+		}
+		for (const x of second) if (!inFirst.has(x.id) && keep(x)) out.push(x);
 		return out;
 	}
 	return ours;
