@@ -2032,6 +2032,10 @@
 }
 
 /* Parts that only exist in the plugin */
+.evra-root.evra-view .evra-probe {
+	position: absolute;
+	visibility: hidden;
+}
 .evra-root.evra-view .s2box {
 	display: flex;
 	flex-direction: column;

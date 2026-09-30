@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.4.9 (beta)
+
+- Fixed: in Settings → Colors, a built-in color that the theme defines as a blend (like light mode's yellow) showed as gray #888888. Built-in colors now always show their real hex code.
+
 ## 0.4.8 (beta)
 
 - Fixed: a compact card's enlarged hover view stayed open (dimming everything) while zooming. Zooming now closes it, and cards sliding under the pointer while scrolling or zooming no longer open it.

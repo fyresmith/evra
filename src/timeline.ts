@@ -182,15 +182,23 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 	const presetOf = (c: string | null) => c && S.palette.find((p) => p.id === c);
 	const col = (c: string | null) => { const p = presetOf(c); return p ? p.hex || `var(--evra-c${p.id})` : 'var(--evra-muted)'; };
 	const cssVar = (name: string) => win().getComputedStyle(root).getPropertyValue(name).trim();
+	// Any CSS color (including theme blends like color-mix) as #rrggbb: let the browser resolve it, paint a pixel, read it back
+	const hexCanvas = createEl('canvas');
+	hexCanvas.width = hexCanvas.height = 1;
 	const toHex = (color: string): string => {
-		const c = createEl('canvas').getContext('2d');
-		c.fillStyle = '#888888'; c.fillStyle = color;
-		const v = String(c.fillStyle);
-		if (v.startsWith('#')) return v;
-		const m = /rgba?\(\s*(\d+)[,\s]+(\d+)[,\s]+(\d+)/.exec(v);
-		return m ? '#' + [m[1], m[2], m[3]].map((x) => (+x).toString(16).padStart(2, '0')).join('') : '#888888';
+		const probe = root.createSpan({ cls: 'evra-probe' });
+		probe.style.color = color;
+		const resolved = win().getComputedStyle(probe).color;
+		probe.remove();
+		const c = hexCanvas.getContext('2d', { willReadFrequently: true });
+		c.clearRect(0, 0, 1, 1);
+		c.fillStyle = '#888888';
+		c.fillStyle = resolved;
+		c.fillRect(0, 0, 1, 1);
+		const [r, g, b] = c.getImageData(0, 0, 1, 1).data;
+		return '#' + [r, g, b].map((x) => x.toString(16).padStart(2, '0')).join('');
 	};
-	const hexOf = (p: { id: string; hex: string | null }) => p.hex || toHex(cssVar(`--evra-c${p.id}`) || '#888888');
+	const hexOf = (p: { id: string; hex: string | null }) => p.hex || toHex(`var(--evra-c${p.id})`);
 	/* Per-frame memos. Note lookups go through Obsidian's metadata cache, which is quick once but not
 	   thousands of times a frame, so each is asked at most once per frame; note-derived text is kept
 	   until the note changes (its stamp). */
