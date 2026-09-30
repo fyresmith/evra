@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.4.1 (beta)
+
+- Light mode redesigned to match dark mode: cards read as colored tiles on a slightly deeper stage, with clear colored borders, the theme's full-strength colors (yellow deepened for contrast on white), crisper lines and a firmer card shadow.
+
 ## 0.4.0 (beta)
 
 The first public beta.

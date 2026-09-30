@@ -38,29 +38,24 @@
 	--evra-band-b: .085;
 	--evra-f-era: "Fraunces", Georgia, "Iowan Old Style", "Times New Roman", serif;
 }
-/* Light themes: Obsidian's light palette is bright enough to shout, so Evra deepens it and keeps
-   era shading and card tints faint. Cards sit on a soft off-white, lifted by a hairline and a shadow. */
+/* Light themes, built to match dark: cards are colored tiles standing clearly off a slightly deeper stage,
+   with vivid lines. Obsidian's light palette is used as it is, like the dark one; only yellow is deepened
+   so it holds up on white. */
 .theme-light .evra-view,
 .theme-light .evra-embed {
-	--evra-bg: color-mix(in srgb, var(--background-secondary) 55%, var(--background-primary));
+	--evra-bg: color-mix(in srgb, var(--background-secondary), var(--text-normal) 4%);
 	--evra-surface: var(--background-primary);
-	--evra-line: color-mix(in srgb, var(--text-muted) 42%, var(--evra-bg));
-	--evra-hair: color-mix(in srgb, var(--text-normal) 10%, transparent);
-	--evra-guide: color-mix(in srgb, var(--text-normal) 5%, transparent);
-	--evra-c1: color-mix(in oklab, var(--color-red) 80%, #34363d);
-	--evra-c2: color-mix(in oklab, var(--color-orange) 80%, #34363d);
-	--evra-c3: color-mix(in oklab, var(--color-yellow) 78%, #7a4f0a);
-	--evra-c4: color-mix(in oklab, var(--color-green) 76%, #34363d);
-	--evra-c5: color-mix(in oklab, var(--color-cyan) 74%, #34363d);
-	--evra-c6: color-mix(in oklab, var(--color-purple) 84%, #34363d);
-	--evra-now: color-mix(in oklab, var(--color-orange) 85%, #34363d);
-	--evra-tint: 4%;
-	--evra-tint-border: 16%;
-	--evra-ribbon: 7%;
-	--evra-band-a: .03;
-	--evra-band-b: .05;
-	--evra-shadow: 0 1px 1px rgb(15 20 35 / .04), 0 2px 10px rgb(15 20 35 / .06);
-	--evra-shadow-lift: 0 14px 36px rgb(15 20 35 / .15);
+	--evra-line: color-mix(in srgb, var(--text-muted) 55%, var(--evra-bg));
+	--evra-hair: color-mix(in srgb, var(--text-normal) 12%, transparent);
+	--evra-guide: color-mix(in srgb, var(--text-normal) 6%, transparent);
+	--evra-c3: color-mix(in oklab, var(--color-yellow) 82%, #7a4f0a);
+	--evra-tint: 9%;
+	--evra-tint-border: 34%;
+	--evra-ribbon: 10%;
+	--evra-band-a: .035;
+	--evra-band-b: .055;
+	--evra-shadow: 0 1px 2px rgb(15 20 35 / .07), 0 4px 14px rgb(15 20 35 / .07);
+	--evra-shadow-lift: 0 14px 36px rgb(15 20 35 / .18);
 }
 .theme-dark .evra-view,
 .theme-dark .evra-embed {
