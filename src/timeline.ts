@@ -2767,7 +2767,8 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 		if (!ev) return;
 		if (k === 'z') { done(); zoomToSelection(); return; }
 		if (e.key === 'Delete' || e.key === 'Backspace') { done(); deleteSel(); return; }
-		if (e.key === 'Enter' || k === 'e') { done(); startEdit(ev.id); return; }
+		// only from the timeline itself or a card: Enter on a focused button (toolbar, toast Undo) is that button's own
+		if ((e.key === 'Enter' || k === 'e') && (tg === stage || tg === root || !!closest(tg, '.evra-card'))) { done(); startEdit(ev.id); return; }
 		if (k === 's') { done(); toggleSpanSel(); return; }
 		if (k === 'l') { done(); const el = cardEls.get(ev.id), r = el ? el.getBoundingClientRect() : null, sr = stage.getBoundingClientRect(); openCardMenu(ev, r ? { x: r.left - sr.left, y: r.bottom - sr.top + 4 } : { x: 80, y: 80 }); return; }
 		if (/^[0-9]$/.test(e.key)) { done(); colorSel(+e.key); return; }

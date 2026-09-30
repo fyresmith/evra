@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.8.5 (beta)
+
+- Enter on a focused toolbar or toast button presses it instead of editing the selected card.
+
 ## 0.8.4 (beta)
 
 - Ctrl/⌘ D places the copy one snap step later keeping the card's exact day, like Duplicate in the card menu.
