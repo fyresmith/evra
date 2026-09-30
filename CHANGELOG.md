@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.7.35 (beta)
+
+- Syncing writes to a note's existing property whatever its capitalisation, instead of adding a lower-case copy.
+
 ## 0.7.34 (beta)
 
 - A file with repeated card or era ids opens with every card shown; deleting one no longer deletes its twin.

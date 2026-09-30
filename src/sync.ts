@@ -40,13 +40,17 @@ export function desiredProps(doc: EvraDoc, E: Engine, ev: EvraEvent | null): Rec
 const norm = (v: unknown): string => (v == null || v === '' || (Array.isArray(v) && !v.length) ? '' : Array.isArray(v) ? JSON.stringify(v.map(String)) : str(v));
 export const sameValue = (a: unknown, b: unknown): boolean => norm(a) === norm(b);
 
-/** Apply desired properties to a frontmatter object. Returns true when something changed. */
+/** Apply desired properties to a frontmatter object. Returns true when something changed. Property names match in any
+    capitalisation, as they are read: a note's "Timeline-Year" is written in place, never joined by a "timeline-year". */
 export function applyProps(fm: Record<string, unknown>, props: Record<string, PropValue>): boolean {
 	let changed = false;
 	for (const [k, v] of Object.entries(props)) {
+		const variants = Object.keys(fm).filter((x) => x.toLowerCase() === k.toLowerCase());
 		const empty = v == null || v === '' || (Array.isArray(v) && !v.length);
-		if (empty) { if (k in fm) { delete fm[k]; changed = true; } continue; }
-		if (!sameValue(fm[k], v)) { fm[k] = v; changed = true; }
+		if (empty) { variants.forEach((x) => delete fm[x]); changed ||= variants.length > 0; continue; }
+		const key = variants.includes(k) ? k : variants[0] ?? k;
+		for (const x of variants) if (x !== key) { delete fm[x]; changed = true; } // copies differing only in case
+		if (!sameValue(fm[key], v)) { fm[key] = v; changed = true; }
 	}
 	return changed;
 }

@@ -38,6 +38,20 @@ eq(tc2 != null ? E.fmt(tc2) : '', '15 Frost, Year 41', 'Timeline-Year works');
 ok(dateFromProps({ 'Timeline-Year': 38, 'timeline-year': 41 }, doc, E, ev) != null, 'the exact key wins over another capitalisation');
 doc.opts.sync.fields.year.key = 'year';
 
+// property names match in any capitalisation
+{
+	const cap: Record<string, unknown> = { 'Timeline-Year': 40 };
+	applyProps(cap, { 'timeline-year': 38 });
+	eq(JSON.stringify(cap), '{"Timeline-Year":38}', 'a capitalised key is written in place');
+	ok(!needsWrite(cap, { 'timeline-year': 38 }), 'and then counts as in step');
+	const two: Record<string, unknown> = { 'Timeline-Year': 40, 'timeline-year': 40 };
+	applyProps(two, { 'timeline-year': 38 });
+	eq(JSON.stringify(two), '{"timeline-year":38}', 'copies differing only in case become one');
+	const gone: Record<string, unknown> = { 'TIMELINE-YEAR': 40, keep: 1 };
+	applyProps(gone, { 'timeline-year': null });
+	eq(JSON.stringify(gone), '{"keep":1}', 'removing removes any capitalisation');
+}
+
 // unlinking removes only timeline properties
 doc.opts.sync.written = ['timeline-date', 'year', 'timeline-month', 'timeline-era', 'timeline-sub-era'];
 applyProps(fm, desiredProps(doc, E, null));
