@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.7.1 (beta)
+
+- Undo history is capped by size as well as steps (about 25 MB, always keeping the last 20 steps), so very large timelines don't eat memory.
+- Moving or renaming a timeline file re-resolves its note links from the new folder.
+
 ## 0.7.0 (beta)
 
 - Timeline files are checked thoroughly as they open. Hand-edited or damaged files with wrong-typed fields, reversed dates, missing or looping era parents, or absurd numbers now open cleanly instead of failing or freezing Obsidian (a date like 1e20 used to hang it). Unknown fields are kept.

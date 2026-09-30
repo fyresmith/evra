@@ -223,10 +223,20 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 		win().clearTimeout(viewSaveT);
 		viewSaveT = later(() => host.saveViewState(), 400);
 	}
+	// Undo keeps whole snapshots, so a large timeline is capped by size as well as count: at most 200 steps and about
+	// 25 MB of text across undo and redo, dropping the oldest undo steps first but always keeping the last 20.
+	const HIST_MAX = 200, HIST_KEEP = 20, HIST_BYTES = 25e6;
+	function capHist() {
+		if (hist.length > HIST_MAX) hist.splice(0, hist.length - HIST_MAX);
+		let total = 0;
+		for (const h of hist) total += h.length;
+		for (const r of redo) total += r.length;
+		while (total > HIST_BYTES && hist.length > HIST_KEEP) total -= hist.shift().length;
+	}
 	function commit(before: string) {
 		docEpoch++;
 		resolveRel();
-		if (before && before !== snapshot()) { hist.push(before); if (hist.length > 200) hist.shift(); redo = []; host.requestSave(); }
+		if (before && before !== snapshot()) { hist.push(before); redo = []; capHist(); host.requestSave(); }
 		host.syncNotes(S); updateUndo(); invalidate();
 	}
 	function restore(json: string) {
@@ -235,8 +245,8 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 		if (sel && !S.events.find((e) => e.id === sel)) sel = null;
 		editing = null; host.requestSave(); host.syncNotes(S); invalidate();
 	}
-	function undo() { if (!hist.length) return; popOnClose = null; closePop(); redo.push(snapshot()); restore(hist.pop()); updateUndo(); toast('Undone'); if (!sheet.hidden) renderSheet(); }
-	function redoF() { if (!redo.length) return; popOnClose = null; closePop(); hist.push(snapshot()); restore(redo.pop()); updateUndo(); if (!sheet.hidden) renderSheet(); }
+	function undo() { if (!hist.length) return; popOnClose = null; closePop(); redo.push(snapshot()); restore(hist.pop()); capHist(); updateUndo(); toast('Undone'); if (!sheet.hidden) renderSheet(); }
+	function redoF() { if (!redo.length) return; popOnClose = null; closePop(); hist.push(snapshot()); restore(redo.pop()); capHist(); updateUndo(); if (!sheet.hidden) renderSheet(); }
 	// The settings panel is redrawn only by actions that change what it shows, never merely because something was saved:
 	// redrawing it as a field loses focus would swallow the click that moved the focus.
 	function updateUndo() { onUndoChange(); }

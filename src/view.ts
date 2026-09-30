@@ -46,6 +46,9 @@ export class EvraView extends TextFileView {
 	}
 
 	setViewData(data: string, clear: boolean): void {
+		// links resolve relative to the timeline file, so a different file starts with an empty cache
+		if (clear || this.resolvedFor !== (this.file ? this.file.path : null)) this.resolved.clear();
+		this.resolvedFor = this.file ? this.file.path : null;
 		let doc: EvraDoc;
 		const name = this.file ? this.file.basename : 'Untitled';
 		if (!data.trim()) {
@@ -67,6 +70,13 @@ export class EvraView extends TextFileView {
 	}
 
 	clear(): void { /* setViewData(…, true) replaces the timeline */ }
+
+	/** The timeline file itself moved: its links resolve from the new folder now. */
+	async onRename(file: TFile): Promise<void> {
+		await super.onRename(file);
+		this.resolvedFor = file.path;
+		this.linksChanged();
+	}
 
 	private mount(doc: EvraDoc) {
 		this.timeline?.destroy();
@@ -139,6 +149,7 @@ export class EvraView extends TextFileView {
 	/* ---------- notes ---------- */
 	// Link resolution is cached: a large timeline asks for the same notes many times a frame
 	private resolved = new Map<string, TFile | null>();
+	private resolvedFor: string | null = null; // the timeline path the cache was filled for
 	private resolve(link: string): TFile | null {
 		let f = this.resolved.get(link);
 		if (f === undefined) {
