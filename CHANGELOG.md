@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.7.22 (beta)
+
+- The card width slider opens at the timeline's width instead of 160, so the first nudge no longer jumps.
+
 ## 0.7.21 (beta)
 
 - Setting description lines to None hides descriptions instead of showing them in full over the date.

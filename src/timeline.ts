@@ -2113,6 +2113,7 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 		const cw = k<HTMLInputElement>('cw');
 		if (cw) {
 			let before: string = null;
+			cw.value = String(S.cardWidth || 240); // the markup's value can land before min and max, which clamps it to 160
 			// snapshot at the first input of a drag or key press, so arrow keys get an undo step too
 			cw.oninput = () => { before = before ?? snapshot(); S.cardWidth = +cw.value; q('.cwv').textContent = cw.value + 'px'; invalidate(); };
 			cw.onchange = () => { commitOrSave(before); before = null; };
