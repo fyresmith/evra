@@ -76,7 +76,7 @@ export function normCal(raw: unknown): Calendar {
 		leaps: (Array.isArray(c.leaps) ? c.leaps : []).filter((r) => isObj(r) && (typeof r.month === 'string' || typeof r.month === 'number') && r.month !== '').map((r) => ({
 			...r, id: idOf(r.id), month: String(r.month), days: num(r.days, 1, -1e6, 1e6) || 1, every: Math.max(1, num(r.every, 4, -1e9, 1e9) || 4),
 			except: num(r.except, 0, 0, 1e9), unless: num(r.unless, 0, 0, 1e9), off: num(r.off, 0, -1e9, 1e9),
-		})),
+		})).filter((r) => months.some((m) => m.id === r.month)), // a rule for a month that's gone would otherwise show on the wrong one
 		weekdays: Array.isArray(c.weekdays) ? c.weekdays.map((w) => str(w)) : [],
 		weekStart: num(c.weekStart, 0, -1e9, 1e9),
 		eraBase: c.eraBase === 0 ? 0 : 1,
@@ -220,6 +220,11 @@ const obj = (v: unknown): Json => (v && typeof v === 'object' ? (v as Json) : nu
 export function parseCalendarImport(txt: string): { months: Month[]; leaps: LeapRule[]; weekdays: string[] } | string {
 	let o: unknown;
 	try { o = JSON.parse(txt); } catch { return 'That isn’t valid JSON.'; }
+	try { return readCalendarImport(o); } catch { return 'Couldn’t read that calendar.'; }
+}
+// Exports vary a lot, so every list may be missing, a lone value or hold nulls: take only what looks right
+function readCalendarImport(o: unknown): { months: Month[]; leaps: LeapRule[]; weekdays: string[] } | string {
+	const arr = (v: unknown): unknown[] => (Array.isArray(v) ? v : []);
 	if (Array.isArray(o)) o = o[0];
 	let j = obj(o);
 	if (j && Array.isArray(j.calendars)) j = obj(j.calendars[0]);
@@ -227,19 +232,20 @@ export function parseCalendarImport(txt: string): { months: Month[]; leaps: Leap
 	const sd = j && obj(j.static_data);
 	const st = j && (obj(j.static) || (sd && obj(sd.year_data)) || sd);
 	if (!st) return 'Couldn’t find a calendar in that file. Paste a Calendarium or Fantasy-Calendar export.';
-	const src = (st.months || st.timespans) as Json[];
-	if (!Array.isArray(src) || !src.length) return 'That calendar has no months.';
+	const src = arr(st.months ?? st.timespans).map(obj).filter(Boolean);
+	if (!src.length) return 'That calendar has no months.';
 	const months: Month[] = src.map((m) => ({ id: uid(), name: str(m.name), days: Math.max(1, int(m.length ?? m.days, 1) || 1), inter: /intercalary/i.test(str(m.type)) }));
-	const leapSrc = (st.leapDays || st.leap_days || (sd && sd.leap_days) || []) as Json[];
+	const leapSrc = arr(st.leapDays ?? st.leap_days ?? (sd && sd.leap_days)).map(obj).filter(Boolean);
 	const leaps: LeapRule[] = leapSrc.map((l) => {
-		const iv = typeof l.interval === 'string'
-			? l.interval.split(',').map((x) => ({ n: parseInt(x.replace(/[!+]/g, ''), 10), ex: x.trim().startsWith('!') }))
-			: ((l.interval || []) as Json[]).map((x) => ({ n: int(obj(x) ? x.interval : x, 0), ex: !!(obj(x) && x.exclusive) }));
+		const v = l.interval;
+		const iv = typeof v === 'string'
+			? v.split(',').map((x) => ({ n: parseInt(x.replace(/[!+]/g, ''), 10), ex: x.trim().startsWith('!') }))
+			: typeof v === 'number' ? [{ n: v, ex: false }]
+				: arr(v).map((x) => ({ n: int(obj(x) ? obj(x).interval : x, 0), ex: !!(obj(x) && obj(x).exclusive) }));
 		const rule = leapFromIntervals(iv), mi = int(l.timespan ?? l.month ?? 0, 0);
 		return rule && months[mi] ? { id: uid(), month: months[mi].id, days: 1, off: int(l.offset, 0), ...rule } : null;
 	}).filter(Boolean);
-	const wk = (st.weekdays || st.global_week || []) as unknown[];
-	const weekdays = wk.map((w) => (typeof w === 'string' ? w : obj(w) ? str(obj(w).name) : '')).filter(Boolean);
+	const weekdays = arr(st.weekdays ?? st.global_week).map((w) => (typeof w === 'string' ? w : obj(w) ? str(obj(w).name) : '')).filter(Boolean);
 	return { months, leaps, weekdays };
 }
 

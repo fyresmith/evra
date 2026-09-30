@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.7.7 (beta)
+
+- Calendar import shows a message instead of failing on odd but valid JSON (null months, leap days or weekdays in the wrong shape).
+- Leap rules for a deleted month are removed instead of showing up on the wrong month.
+- Settings fields for the first year's number, the second calendar's year length and the range reject values too large to keep.
+
 ## 0.7.6 (beta)
 
 - Fixed: the +N marker for bundled spans sat in the wrong place in bottom-to-top and right-to-left timelines.

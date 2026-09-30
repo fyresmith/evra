@@ -2,7 +2,7 @@ import { TIMELINE_COMMANDS } from './commands';
 import { attr, closest, q1, qa, setHTML, svgEl, type SvgEl } from './dom';
 import { cap, clamp, DEFAULT_FMT, eraAbbr, esc, makeEngine, TOKENS, tpl, uid } from './engine';
 import type { TimelineHost } from './host';
-import { DEFAULT_UNITS, defaultPalette, normCal, normDoc, parseCalendarImport, PRESETS, SYNC_FIELDS } from './model';
+import { DEFAULT_UNITS, defaultPalette, normCal, normDoc, okDay, parseCalendarImport, PRESETS, SYNC_FIELDS } from './model';
 import { dateFromProps, noteDateOf, syncValue } from './sync';
 import { DESC_MAX, inline, noteExcerpt, plainOf } from './text';
 import type { Era, EvraDoc, EvraEvent, Orientation, SavedView, Side } from './types';
@@ -2008,7 +2008,7 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 			s2on.onchange = () => { step(() => { s2.on = s2on.checked; }); renderSheet(); };
 			const s2c = k<HTMLInputElement>('s2cards'), s2d = k<HTMLInputElement>('s2days');
 			s2c.onchange = () => step(() => { s2.onCards = s2c.checked; });
-			s2d.onchange = () => step(() => { s2.yearDays = Math.max(1, int(s2d.value) || 1); });
+			s2d.onchange = () => { const v = Math.max(1, Math.min(1e6, int(s2d.value) || 1)); s2d.value = String(v); step(() => { s2.yearDays = v; }); };
 			liveText(k<HTMLInputElement>('s2name'), (v) => { s2.name = v; });
 			liveText(k<HTMLInputElement>('s2fmt'), (v) => { s2.fmt = v; });
 			qq('[data-d^="s2o"]').forEach((el) => (el.onchange = () => { const t = readDate(sheetBody, 's2o'); if (t != null) step(() => { s2.offset = t; }); }));
@@ -2023,7 +2023,8 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 			renderSheet();
 		};
 		const ys = k<HTMLInputElement>('sYs');
-		if (ys) ys.onchange = () => { step(() => { S.cal.yearStart = int(ys.value) || 0; }); };
+		// the same limits normDoc applies, so what's shown live is what the file reopens with
+		if (ys) ys.onchange = () => { const v = Math.max(-1e12, Math.min(1e12, int(ys.value) || 0)); ys.value = String(v); step(() => { S.cal.yearStart = v; }); };
 		// formats
 		qq<HTMLInputElement>('[data-fmt]').forEach((el) => liveText(el, (v) => { (S.cal.fmt as unknown as Record<string, string>)[el.dataset.fmt] = v; }, refreshPrev));
 		qq('[data-tok]').forEach((b) => (b.onclick = () => {
@@ -2047,6 +2048,8 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 			const ys_ = S.cal.yearStart;
 			let a = int(k<HTMLInputElement>('r0').value) - ys_, b = int(k<HTMLInputElement>('r1').value) - ys_;
 			if (!Number.isFinite(a) || !Number.isFinite(b)) { toast('Enter a year.'); renderSheet(); return; } // renderSheet puts the old value back
+			const far = (y: number) => Math.abs(y + ys_) > 1e9 || !okDay(yearStartT(y)); // past what a reopened file keeps
+			if (far(a) || far(b)) { toast('That year is too far out.'); renderSheet(); return; }
 			if (!(b > a)) { toast('The range has to end after it starts.'); renderSheet(); return; }
 			const cb = contentBounds();
 			if (cb && (yearStartT(a) > cb[0] || yearStartT(b) < cb[1])) { a = Math.min(a, yearOf(cb[0])); b = Math.max(b, yearOf(cb[1]) + 1); toast('Kept the range wide enough for existing events and eras.'); }
