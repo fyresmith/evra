@@ -2762,7 +2762,8 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 		if (mod && k === 'v') { done(); pasteClip(lastPointerT); return; }
 		if (mod && k === 'd') { done(); duplicateSel(); return; }
 		if (mod || e.altKey && !/^Arrow/.test(e.key)) return;
-		if (e.key === 'Escape') { if (!pop.hidden || sel) { e.stopPropagation(); closePop(); setSel([]); } else if (!sheet.hidden) { e.stopPropagation(); closeSheet(); } return; }
+		// one thing per press: an open popover (help, a menu), then the selection, then the settings sheet
+		if (e.key === 'Escape') { if (!pop.hidden) { e.stopPropagation(); closePop(); } else if (sel) { e.stopPropagation(); setSel([]); } else if (!sheet.hidden) { e.stopPropagation(); closeSheet(); } return; }
 		if (e.key === '/') { done(); openPalette(''); return; }
 		if (e.key === '?') { done(); openHelp({ x: G.W - 340, y: 60 }); return; }
 		if (k === 'g') { done(); ACTIONS['go-to-date'](); return; }

@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.8.8 (beta)
+
+- Escape closes an open popover such as Help first and keeps the selection.
+
 ## 0.8.7 (beta)
 
 - Escape in the middle of a drag puts everything back, with no undo step.
