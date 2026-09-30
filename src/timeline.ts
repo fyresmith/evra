@@ -448,8 +448,12 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 			}
 			// Span cards stay in view while their span does, stopping short of the next card stacked in their way
 			for (const it of items) if (it.span) {
-				const next = Math.min(...placed.filter((r) => r[0] > it.a + 0.01 && r[2] < it.cOff + it.cr && r[3] > it.cOff).map((r) => r[0]), Infinity);
-				it.pos = Math.max(it.a, Math.min(Math.max(it.a, margin), it.rb - it.len, next - GAPC - it.len));
+				// where the card wants to be (the top of the view), stopping short of the next card in its column, and clear of the one before
+				const inCol = placed.filter((r) => r[0] > it.a + 0.01 && r[2] < it.cOff + it.cr && r[3] > it.cOff);
+				const want = Math.max(it.a, Math.min(margin, it.rb - it.len));
+				const next = Math.min(...inCol.filter((r) => r[1] > want).map((r) => r[0]), Infinity);
+				const prev = Math.max(...inCol.filter((r) => r[1] <= want).map((r) => r[1] + GAPC), -Infinity);
+				it.pos = Math.max(it.a, Math.min(Math.max(want, prev), it.rb - it.len, next - GAPC - it.len));
 				out.ribbons[side].push([it.ra, it.rb, it.cOff, it.cOff + it.cr]);
 			}
 			for (const it of items) {
@@ -795,7 +799,7 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 		F.bundles = []; // one "+N" marker per side where bundled spans are running
 		for (const side of ['a', 'b'] as Side[]) {
 			const on = bundleHits.filter((b) => b.side === side && b.pe > 0 && b.ps < L);
-			if (on.length) F.bundles.push({ side, n: on.length, ids: on.map((b) => b.ev.id), s: clamp(Math.max(...on.map((b) => b.ps)) + 10, 70, L - 30) });
+			if (on.length) F.bundles.push({ side, n: on.length, ids: on.map((b) => b.ev.id), s: Sx(clamp(Math.max(...on.map((b) => b.ps)) + 10, 70, L - 30)) });
 		}
 		// dots
 		if (lod === 'dots') {
@@ -920,6 +924,7 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 			place(el, bx);
 			if (editing === id) el.setCssStyles({ height: '', minHeight: rd(bx[3]) + 'px' }); else el.setCssStyles({ minHeight: '' });
 			if (!it.group) el.style.setProperty('--lines', String(descLines(ev, G.vert ? cr : 220)));
+			el.tabIndex = sel === id || (!sel && it === items[0]) ? 0 : -1; // one tab stop for the cards (the selected one); J and K move between them
 			el.setAttribute('aria-label', it.group ? `${it.members.length} events in ${yearStr(it.year)}` : `${titleOf(ev)}, ${ev.end != null ? fmtRange(ev) : fmt(ev.t)}`);
 			el.style.setProperty('--cc', col(ev.color));
 			el.setCssStyles({ zIndex: editing === id ? '6' : sel === id && dragId !== id ? '4' : '' });
@@ -936,13 +941,13 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 	function cardHTML(ev: EvraEvent, mode = lod, forEdit = false) {
 		const linked = !!ev.file, title = titleOf(ev), date = evDate(ev) + (sec().on && sec().onCards ? ` · ${secLabel(secYear(ev.t))}` : '');
 		if (mode === 'compact') return `${ev.icon ? `<i class="sw ic">${esc(ev.icon)}</i>` : '<i class="sw"></i>'}<span class="tt">${esc(title)}</span><span class="dt">${esc(date)}</span>`;
-		const icon = linked ? `<button class="ln" data-act="open" aria-label="Open note">${ICON.note}</button>` : '';
+		const icon = linked ? `<button class="ln" data-act="open" aria-label="Open note" tabindex="-1">${ICON.note}</button>` : '';
 		const body = linked ? inline(noteExcerpt(noteSrc(ev))) : inline(ev.text || '').replace(/\n/g, '<br>');
 		const ages = agesOf(ev);
 		const extra = (ev.rel ? `<div class="rl">↳ ${esc(relText(ev))}</div>` : '') + (ages.length ? `<div class="ag">${ages.map((a) => `<span style="--cc:${col(a.color)}">${esc(a.name)} · ${a.age}</span>`).join('')}</div>` : '');
 		const cover = coverOf(ev), mark = ev.icon ? `<i class="sw ic">${esc(ev.icon)}</i>` : '<i class="sw"></i>';
 		const tags = (ev.tags || []).length ? `<div class="tg">${ev.tags.map((t) => `<span>#${esc(t)}</span>`).join('')}</div>` : '';
-		return `${cover ? `<div class="cv" style="background-image:url('${esc(cover.replace(/'/g, '%27'))}')"></div>` : ''}<div class="ch">${mark}<span class="tt" data-f="title">${esc(title)}</span>${icon}<button class="mb" data-act="menu" aria-label="Card options">${ICON.dots}</button></div><div class="dt">${esc(date)}</div>${extra}${tags}${body || forEdit ? `<div class="bd" data-f="text">${body}</div>` : ''}`;
+		return `${cover ? `<div class="cv" style="background-image:url('${esc(cover.replace(/'/g, '%27'))}')"></div>` : ''}<div class="ch">${mark}<span class="tt" data-f="title">${esc(title)}</span>${icon}<button class="mb" data-act="menu" aria-label="Card options" tabindex="-1">${ICON.dots}</button></div><div class="dt">${esc(date)}</div>${extra}${tags}${body || forEdit ? `<div class="bd" data-f="text">${body}</div>` : ''}`;
 	}
 
 	/* ---------- overlays: tags, era labels, rulers, bundles, now, breadcrumb ---------- */
@@ -1033,7 +1038,7 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 		const box2 = $('ruler2'), list2 = (F.ticks2 || []).filter((t) => t.s > 20 && t.s < G.L - 20);
 		box2.hidden = !list2.length; box2.className = 'ui ruler r2 ' + (G.vert ? 'rv' : 'rh'); box2.title = sec().name;
 		renderRulerSpans(box2, list2);
-		const box = $('ruler'), ticks = (F.ticks || []).filter((t) => (G.vert ? t.s > (G.rev ? 10 : 50) && t.s < G.H - G.inb - (G.rev ? 50 : 10) : t.s > 20 && t.s < G.W - 60));
+		const box = $('ruler'), ticks = (F.ticks || []).filter((t) => (G.vert ? t.s > 50 && t.s < G.H - G.inb - (G.rev ? 50 : 10) : t.s > 20 && t.s < G.W - 60));
 		box.className = 'ui ruler ' + (G.vert ? 'rv' : 'rh');
 		renderRulerSpans(box, ticks);
 	}
@@ -1356,7 +1361,8 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 		G = G || geo();
 		const L = local(e);
 		pointers.set(e.pointerId, L);
-		if (pointers.size === 2 && drag && (drag.type === 'pan' || (drag.type === 'card' && !drag.armed))) {
+		if (pointers.size === 2 && drag && !drag.moved && drag.type !== 'pinch' && (e.pointerType === 'touch' || drag.type === 'pan' || (drag.type === 'card' && !drag.armed))) {
+			tipEl.hidden = true;
 			win().clearTimeout(drag.timer);
 			const [a, b] = [...pointers.values()];
 			drag = { type: 'pinch', last: Math.hypot(a.x - b.x, a.y - b.y) };
@@ -1404,8 +1410,8 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 			drag = { type: 'dot', id: d.id, which: both ? 'auto' : d.which, start: L, before: null, o: { t: ev.t, end: ev.end, os: ev.os, oe: ev.oe }, moved: false };
 		} else if (Math.abs(L.c) < 10) {
 			const b = hitBound(L, e.altKey);
-			drag = b ? startBound(b, e.altKey, L) : { type: 'select', a: snap(tAt(L.s)), b: null, start: L, moved: false };
-		} else if (hitBound(L, e.altKey)) drag = startBound(hitBound(L, e.altKey), e.altKey, L);
+			drag = b ? { ...startBound(b, e.altKey, L), era: attr(e.target, 'data-era') } : { type: 'select', a: snap(tAt(L.s)), b: null, start: L, moved: false };
+		} else if (hitBound(L, e.altKey)) drag = { ...startBound(hitBound(L, e.altKey), e.altKey, L), era: attr(e.target, 'data-era') };
 		else if (e.shiftKey) drag = { type: 'marquee', start: L, moved: false, keep: selIds() };
 		else if (e.pointerType === 'touch') {
 			const tgt = e.target;
@@ -1506,7 +1512,7 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 			if (d.moved) { d.members.forEach((m) => ensureRange(evById(m.id))); commit(d.before); settle(d.id); }
 			else { win().clearTimeout(groupClickT); groupClickT = later(() => openGroupPanel(d.id), 230); } // wait so a double-click can spread the group instead
 		} else if (d.type === 'dot') { if (d.moved) { ensureRange(evById(d.id)); commit(d.before); } }
-		else if (d.type === 'bound') { if (d.moved) commit(d.before); }
+		else if (d.type === 'bound') { if (d.moved) commit(d.before); else if (d.era) openEraEditor(d.era, d.start); } // a click on an era's bar near an edge still opens it
 		else if (d.type === 'marquee') { marqueeEl.hidden = true; if (selIds().length > 1) toast(`${selIds().length} cards selected`); }
 		else if (d.type === 'zoomdot') { if (!d.moved) { const [a, b] = d.d.zoom, span = Math.max(b - a, dpy() * 2); fitRange(a - span * 0.2, b + span * 0.2); if (d.d.id) sel = d.d.id; } }
 		else if (d.type === 'select') { if (d.b != null && Math.abs(ts(d.b) - ts(d.a)) > 12) openCreatePop(local(e), Math.min(d.a, d.b), Math.max(d.a, d.b)); }
@@ -2375,6 +2381,8 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 		const w = pop.offsetWidth, h = pop.offsetHeight;
 		pop.setCssStyles({ left: clamp(at.x, 8, G.W - w - 8) + 'px', top: clamp(at.y, 8, G.H - h - 8) + 'px' });
 		if (bind) bind(pop);
+		// keyboard users land in the popover (unless it focused something itself)
+		if (!pop.contains(doc().activeElement)) q1(pop, 'button, input, select, textarea')?.focus({ preventScroll: true });
 	}
 	function closePop() {
 		if (pop.hidden) return;
@@ -2519,10 +2527,11 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 				S.eras.push(era); commit(bf); fitRange(e.start, e.end); openEraEditor(era.id, at);
 			};
 			q1(p, '[data-m=del]').onclick = () => {
+				const kids = S.eras.filter((x) => x.parent === id).length;
 				S.eras.forEach((x) => { if (x.parent === id) x.parent = e.parent; });
 				S.eras = S.eras.filter((x) => x.id !== id);
 				popOnClose = null; closePop(); commit(before);
-				toast('Era deleted. Its sub-eras moved up a level.', true);
+				toast(kids ? 'Era deleted. Its sub-eras moved up a level.' : 'Era deleted.', true);
 			};
 		}, () => commit(before));
 	}
@@ -2605,6 +2614,16 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 	/* ---------- keyboard: only while the timeline has focus ---------- */
 	root.addEventListener('keydown', (e) => {
 		if (!pal.hidden || e.defaultPrevented) return;
+		if (!pop.hidden && pop.contains(e.target as Node)) { // inside a menu: arrows move between its controls, and Escape closes it
+			if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); closePop(); return; }
+			const tag = (e.target as HTMLElement).tagName;
+			if ((e.key === 'ArrowDown' || e.key === 'ArrowUp') && tag !== 'SELECT' && tag !== 'TEXTAREA') {
+				e.preventDefault(); e.stopPropagation();
+				const all = qa(pop, 'button:not([disabled]), input, select, textarea'), i = all.indexOf(e.target as HTMLElement);
+				all[(i + (e.key === 'ArrowDown' ? 1 : all.length - 1)) % all.length]?.focus();
+			}
+			return;
+		}
 		const tg = e.target as HTMLElement, typing = tg.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(tg.tagName), mod = e.ctrlKey || e.metaKey, k = e.key.toLowerCase();
 		const done = () => { e.preventDefault(); e.stopPropagation(); };
 		if (mod && k === 'k' && !e.shiftKey && !e.altKey) { done(); openPalette(''); return; }

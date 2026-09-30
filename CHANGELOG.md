@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.7.6 (beta)
+
+- Fixed: the +N marker for bundled spans sat in the wrong place in bottom-to-top and right-to-left timelines.
+- Fixed: with spans as blocks, a long span's card could sit off screen while its block filled the view.
+- Clicking a short era's bar next to an era edge opens its editor.
+- Deleting an era without sub-eras just says "Era deleted."
+- Ruler labels stay clear of the breadcrumb in bottom-to-top timelines.
+- Touch: a pinch that starts with a finger on the time line zooms.
+- Keyboard: menus take the focus when they open; arrow keys move within them (instead of moving the card) and Escape closes them. Cards are one tab stop (the selected card), so Tab reaches the toolbar quickly.
+
 ## 0.7.5 (beta)
 
 - Timelines in notes: a note at the vault root picks the timeline next to it; `to:` includes that whole year; clicking an event reuses the pane that already shows the timeline; an unknown `era:` or a tag with no events says so.
