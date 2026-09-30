@@ -11,6 +11,7 @@ npm run build          # type-check and build a minified main.js
 npm test               # calendar, formatting and note-sync tests
 npm run lint           # ESLint with eslint-plugin-obsidianmd (the rules used in plugin review)
 npm run install-vault  # copy the plugin into ./test-vault (or: npm run install-vault -- /path/to/vault)
+npm run e2e            # end-to-end tests in real Obsidian (headless; see below)
 npm run big-world      # generate Aerth, a large example world (~2,700 notes, 91 eras), in test-vault/Aerth
 ```
 
@@ -51,6 +52,20 @@ All HTML is built from escaped strings and parsed through Obsidian's `sanitizeHT
 Colors and fonts come from Obsidian's theme variables. They are mapped to `--evra-*` variables at the top of `styles.css`. Themes and CSS snippets can override those variables on `.evra-view`.
 
 Inside the view, form controls are reset to the browser's own look and then styled by Evra, so they look the same in every theme.
+
+## End-to-end tests
+
+`npm run e2e` runs the whole plugin inside a real, headless Obsidian. It uses its own throwaway profile and a throwaway copy of `test-vault`, so nothing real is touched. The tests click, drag and type the way a person would, and each one fails if Obsidian logs an error.
+
+```sh
+npm run build && npm run install-vault
+npm run e2e                          # everything, light theme
+npm run e2e -- --theme both          # light and dark
+npm run e2e -- --grep "note sync"    # just the tests whose names match
+npm run e2e -- --repeat 3            # run everything several times
+```
+
+Screenshots of failures go to `test-dist/e2e-failures`. Obsidian is found at `/usr/lib/electron43/electron` and `/usr/lib/obsidian/app.asar`; set `OBSIDIAN_ELECTRON` and `OBSIDIAN_ASAR` for other installs. The scenarios live in `tests/e2e/specs.mjs`.
 
 ## Visual harness
 

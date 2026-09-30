@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.6.0 (beta)
+
+- An end-to-end test suite that drives Evra inside a real, headless Obsidian: opening files, adding and dragging cards, menus, eras, search, filters, saved views, every settings tab, note sync, renames, drag and drop, embeds and every command (`npm run e2e`).
+
 ## 0.5.2 (beta)
 
 - The sample notes no longer repeat their name as a heading under Obsidian's own title.
