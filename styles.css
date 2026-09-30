@@ -2046,6 +2046,10 @@
 	top:46px;
 	left:16px
 }
+/* six settings tabs don't fit in one row: wrap them rather than hide some off the edge */
+.evra-root.evra-view.thin .sheet .tabs {
+	flex-wrap:wrap
+}
 .evra-root.evra-view.thin .crumb {
 	flex-wrap:nowrap;
 	overflow:hidden

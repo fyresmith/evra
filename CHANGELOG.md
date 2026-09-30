@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.8.13 (beta)
+
+- Settings tabs wrap on narrow screens instead of hiding off the edge.
+
 ## 0.8.12 (beta)
 
 - At phone width in any direction, the minimap and now tag sit below the breadcrumb and era labels stay clickable.
