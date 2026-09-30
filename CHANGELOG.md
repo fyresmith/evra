@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.7.24 (beta)
+
+- 97 new end-to-end tests for eras, spans, navigation, all four directions, calendars and settings, including phone-width windows.
+
 ## 0.7.23 (beta)
 
 - Narrowing the range keeps it at the end of the content, like Fit range, instead of adding a year.
