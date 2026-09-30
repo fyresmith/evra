@@ -29,10 +29,13 @@ function findTimeline(plugin: EvraPlugin, name: string | undefined, sourcePath: 
 		return byName || null;
 	}
 	const all = plugin.app.vault.getFiles().filter((x) => x.extension === 'evra').sort((a, b) => a.path.localeCompare(b.path));
-	const dir = sourcePath.split('/').slice(0, -1).join('/');
-	// a root-level file's parent path is '/', while a root note's folder is ''
+	// the nearest timeline up the note's folders: its own folder first, then each parent up to the vault root
+	// (a root-level file's parent path is '/', while a root note's folder is '')
 	const folderOf = (x: TFile) => { const p = x.parent ? x.parent.path : ''; return p === '/' ? '' : p; };
-	return all.find((x) => folderOf(x) === dir) || all[0] || null;
+	for (let dir = sourcePath.split('/').slice(0, -1); ; dir = dir.slice(0, -1)) {
+		const hit = all.find((x) => folderOf(x) === dir.join('/'));
+		if (hit || !dir.length) return hit || all[0] || null;
+	}
 }
 
 class EmbedChild extends MarkdownRenderChild {
@@ -43,8 +46,11 @@ class EmbedChild extends MarkdownRenderChild {
 		void this.render();
 		// only saves to the timeline shown here (or any timeline while none is found) redraw it
 		this.registerEvent(this.plugin.app.vault.on('modify', (f) => { if (f.path.endsWith('.evra') && (this.filePath == null || f.path === this.filePath)) void this.render(); }));
-		// a renamed timeline can change which file the embed's name points at, so resolve it again
-		this.registerEvent(this.plugin.app.vault.on('rename', (f, oldPath) => { if (f.path.endsWith('.evra') || oldPath.endsWith('.evra')) void this.render(); }));
+		// a renamed, deleted or new timeline can change which file the embed's name points at, so resolve it again
+		const ws = this.plugin.app.workspace, vault = this.plugin.app.vault;
+		this.registerEvent(vault.on('rename', (f, oldPath) => { if (f.path.endsWith('.evra') || oldPath.endsWith('.evra')) void this.render(); }));
+		this.registerEvent(vault.on('delete', (f) => { if (f.path.endsWith('.evra')) void this.render(); }));
+		this.registerEvent(vault.on('create', (f) => { if (ws.layoutReady && f.path.endsWith('.evra')) void this.render(); })); // every file is "created" while the vault loads
 	}
 	/** Show an event: in the leaf that already has this timeline open, or in a new one. */
 	private async open(file: TFile, id: string) {
@@ -85,7 +91,8 @@ export function drawEmbed(el: HTMLElement, doc: EvraDoc, o: Record<string, strin
 		a = e.start; b = e.end; title = e.name;
 	}
 	// from:/to: that aren't years are ignored rather than giving an empty, NaN range
-	const from = o.from ? parseInt(o.from, 10) : NaN, to = o.to ? parseInt(o.to, 10) : NaN;
+	let from = o.from ? parseInt(o.from, 10) : NaN, to = o.to ? parseInt(o.to, 10) : NaN;
+	if (to < from) [from, to] = [to, from]; // written the wrong way round
 	if (Number.isFinite(from)) a = E.toT(from - doc.cal.yearStart, 0, 0);
 	// to: is inclusive: it runs to the last day of that year, so "to: 38" shows Year 38's events and the header ends in 38
 	if (Number.isFinite(to)) b = E.yearStartT(to - doc.cal.yearStart + 1) - 1;
@@ -95,7 +102,9 @@ export function drawEmbed(el: HTMLElement, doc: EvraDoc, o: Record<string, strin
 	const head = el.createDiv({ cls: 'eh' });
 	head.createSpan({ text: title });
 	head.createEl('small', { text: `${E.fmt(a)} – ${E.fmt(b)}` });
-	const svg = el.createSvg('svg', { attr: { viewBox: `0 0 ${W} ${H}`, preserveAspectRatio: 'none', role: 'img', 'aria-label': `Timeline of ${title}` } });
+	// named by a <title>, not aria-label: Obsidian shows aria-labels as tooltips, and its tooltip code breaks on SVG elements
+	const svg = el.createSvg('svg', { attr: { viewBox: `0 0 ${W} ${H}`, preserveAspectRatio: 'none', role: 'img' } });
+	svg.createSvg('title').textContent = `Timeline of ${title}`;
 	doc.eras.filter((e) => e.end > a && e.start < b && dep[e.id] <= 2).forEach((e) => {
 		svg.appendChild(svgEl('rect', { x: rd(X(Math.max(a, e.start))), y: dep[e.id] === 1 ? 6 : 16, width: rd(Math.max(1, X(Math.min(b, e.end)) - X(Math.max(a, e.start)))), height: dep[e.id] === 1 ? 40 : 20, rx: 4 }, `fill:${col(e.color)};opacity:.16`));
 	});

@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.7.36 (beta)
+
+- Embeds update when a timeline is created or deleted, use the nearest timeline up the note's folders, and accept from/to in either order.
+
 ## 0.7.35 (beta)
 
 - Syncing writes to a note's existing property whatever its capitalisation, instead of adding a lower-case copy.
