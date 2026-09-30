@@ -1873,9 +1873,14 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 			<section><h4>Grouping</h4><label class="fld"><span>Group a ${esc(c.units.year)} into one card when it has more than</span><div class="seg txt">${([[0, 'Never'], [2, '2'], [3, '3'], [5, '5'], [8, '8']] as [number, string][]).map(([n, l]) => `<button data-grp="${n}" class="${o.groupOver === n ? 'on' : ''}">${l}</button>`).join('')}</div></label><p class="note">Only while zoomed out. Zooming in spreads the group back into separate cards.</p></section>`;
 		}
 		const scroll = sheetBody.scrollTop;
-		const hadFocus = sheet.contains(doc().activeElement);
+		const act = doc().activeElement as HTMLElement, hadFocus = sheet.contains(act);
+		// remember which control had focus (by its data-* key) so a redraw can put the user back on it
+		const fa = hadFocus && sheetBody.contains(act) && act !== sheetBody ? Array.from(act.attributes).find((a) => a.name.startsWith('data-')) : null;
+		const focusSel = fa ? `[${fa.name}="${CSS.escape(fa.value)}"]` : null;
 		setHTML(sheetBody, h);
-		if (hadFocus && !sheet.contains(doc().activeElement)) sheetBody.focus({ preventScroll: true }); // keep keyboard shortcuts working
+		const again = focusSel && q1<HTMLElement>(sheetBody, focusSel);
+		if (again) again.focus({ preventScroll: true });
+		else if (hadFocus && !sheet.contains(doc().activeElement)) sheetBody.focus({ preventScroll: true }); // keep keyboard shortcuts working
 		qa(sheetBody, '.mrow').forEach((r) => (r.draggable = true));
 		sheetBody.scrollTop = scroll;
 		bindSheet();
@@ -1885,12 +1890,21 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 		const q = <T extends HTMLElement = HTMLElement>(s: string) => q1<T>(sheetBody, s), qq = <T extends HTMLElement = HTMLElement>(s: string) => qa<T>(sheetBody, s);
 		const k = <T extends HTMLElement = HTMLElement>(key: string) => q<T>(`[data-k="${key}"]`);
 		const step = (fn: () => void) => { const before = snapshot(); fn(); commit(before); };
+		// commit without a snapshot records no undo step, so at least make sure the change is saved
+		const commitOrSave = (before: string) => { commit(before); if (!before) host.requestSave(); };
 		const calStep = (fn: () => void) => step(() => { const old = JSON.parse(JSON.stringify(S.cal)) as EvraDoc['cal']; fn(); normCal(S.cal); E.reset(); if (keepDates) E.remapDates(old, S.cal); });
-		const liveText = (el: HTMLInputElement | HTMLTextAreaElement, apply: (v: string) => void, after?: () => void) => {
+		// redraw: labels elsewhere in the panel use this value, so draw it again once the edit is done
+		const liveText = (el: HTMLInputElement | HTMLTextAreaElement, apply: (v: string) => void, after?: () => void, redraw = false) => {
 			let before: string = null;
 			el.addEventListener('focus', () => { before = snapshot(); if (el.dataset.fmt) lastTpl = el as HTMLInputElement; });
 			el.addEventListener('input', () => { apply(el.value); E.reset(); invalidate(); if (after) after(); });
-			el.addEventListener('change', () => { if (before) commit(before); before = snapshot(); });
+			el.addEventListener('change', () => {
+				const changed = before !== snapshot();
+				commitOrSave(before);
+				before = snapshot();
+				// after the event, so focus has already moved on to wherever the user tabbed or clicked
+				if (redraw && changed) later(() => { if (!sheet.hidden) renderSheet(); }, 0);
+			});
 		};
 		const refreshPrev = () => qq('[data-prev]').forEach((o) => (o.textContent = fmtPreview(o.dataset.prev)));
 		const int = (v: string) => parseInt(v, 10);
@@ -1906,7 +1920,7 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 			});
 			toast(`Calendar set to ${p.label.toLowerCase()}.`, true); renderSheet();
 		};
-		qq<HTMLInputElement>('[data-name]').forEach((el) => liveText(el, (v) => { S.cal.months[+el.dataset.name].name = v; }));
+		qq<HTMLInputElement>('[data-name]').forEach((el) => liveText(el, (v) => { S.cal.months[+el.dataset.name].name = v; }, undefined, true));
 		qq<HTMLInputElement>('[data-days]').forEach((el) => (el.onchange = () => {
 			const n = int(el.value);
 			if (!(n >= 1)) { el.value = String(S.cal.months[+el.dataset.days].days); toast('A month needs at least one day.'); return; }
@@ -1934,12 +1948,17 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 			});
 			list.addEventListener('dragend', () => renderSheet());
 		}
-		([['uDay', 'day'], ['uMonth', 'month'], ['uYear', 'year'], ['uYears', 'years']] as [string, keyof typeof DEFAULT_UNITS][]).forEach(([s, u]) => { const el = k<HTMLInputElement>(s); if (el) liveText(el, (v) => { S.cal.units[u] = v.trim() || DEFAULT_UNITS[u]; }); });
-		qq<HTMLInputElement>('[data-fest]').forEach((el) => (el.onchange = () => { step(() => { S.cal.months[+el.dataset.fest].inter = el.checked; E.reset(); }); }));
+		([['uDay', 'day'], ['uMonth', 'month'], ['uYear', 'year'], ['uYears', 'years']] as [string, keyof typeof DEFAULT_UNITS][]).forEach(([s, u]) => { const el = k<HTMLInputElement>(s); if (el) liveText(el, (v) => { S.cal.units[u] = v.trim() || DEFAULT_UNITS[u]; }, undefined, true); });
+		qq<HTMLInputElement>('[data-fest]').forEach((el) => (el.onchange = () => { calStep(() => { S.cal.months[+el.dataset.fest].inter = el.checked; }); renderSheet(); }));
 		qq('[data-lp]').forEach((row) => qa<HTMLInputElement | HTMLSelectElement>(row, '[data-lk]').forEach((el) => (el.onchange = () => {
 			const l = S.cal.leaps.find((x) => x.id === row.dataset.lp), key = el.dataset.lk as 'month' | 'days' | 'every' | 'except' | 'unless';
 			calStep(() => { if (key === 'month') l.month = el.value; else l[key] = Math.max(key === 'every' || key === 'days' ? 1 : 0, int(el.value) || 0); });
 			renderSheet();
+			// accepted either way, but the counts only add up when each number is a multiple of the one before
+			const yrs = S.cal.units.years;
+			if (l.except && l.except % l.every) toast(`“Except every ${l.except}” isn’t a multiple of “every ${l.every}”, so it skips ${yrs} that never had a leap day.`);
+			else if (l.unless && !l.except) toast('“Unless every” does nothing without an “except every”.');
+			else if (l.unless && l.unless % l.except) toast(`“Unless every ${l.unless}” isn’t a multiple of “except every ${l.except}”, so it adds back ${yrs} that were never skipped.`);
 		})));
 		qq('[data-lpdel]').forEach((b) => (b.onclick = () => { calStep(() => { S.cal.leaps = S.cal.leaps.filter((x) => x.id !== b.dataset.lpdel); }); renderSheet(); }));
 		const lpa = k('lpAdd');
@@ -1963,7 +1982,8 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 		if (ig) ig.onclick = () => {
 			const r = parseCalendarImport(k<HTMLTextAreaElement>('impTxt').value);
 			if (typeof r === 'string') { toast(r); return; }
-			calStep(() => { Object.assign(S.cal, r); });
+			// the import replaces the whole structure: nothing is kept from the old months, leap rules or week
+			calStep(() => { S.cal.months = r.months; S.cal.leaps = r.leaps || []; S.cal.weekdays = r.weekdays || []; S.cal.weekStart = 0; });
 			toast(`Imported ${r.months.length} months${r.leaps.length ? `, ${r.leaps.length} leap rule${r.leaps.length > 1 ? 's' : ''}` : ''}${r.weekdays.length ? ` and a ${r.weekdays.length}-day week` : ''}.`, true);
 			renderSheet();
 		};
@@ -1991,6 +2011,7 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 		const rangeChange = () => {
 			const ys_ = S.cal.yearStart;
 			let a = int(k<HTMLInputElement>('r0').value) - ys_, b = int(k<HTMLInputElement>('r1').value) - ys_;
+			if (!Number.isFinite(a) || !Number.isFinite(b)) { toast('Enter a year.'); renderSheet(); return; } // renderSheet puts the old value back
 			if (!(b > a)) { toast('The range has to end after it starts.'); renderSheet(); return; }
 			const cb = contentBounds();
 			if (cb && (yearStartT(a) > cb[0] || yearStartT(b) < cb[1])) { a = Math.min(a, yearOf(cb[0])); b = Math.max(b, yearOf(cb[1]) + 1); toast('Kept the range wide enough for existing events and eras.'); }
@@ -2035,9 +2056,9 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 		const cw = k<HTMLInputElement>('cw');
 		if (cw) {
 			let before: string = null;
-			cw.onpointerdown = () => { before = snapshot(); };
-			cw.oninput = () => { S.cardWidth = +cw.value; q('.cwv').textContent = cw.value + 'px'; invalidate(); };
-			cw.onchange = () => commit(before);
+			// snapshot at the first input of a drag or key press, so arrow keys get an undo step too
+			cw.oninput = () => { before = before ?? snapshot(); S.cardWidth = +cw.value; q('.cwv').textContent = cw.value + 'px'; invalidate(); };
+			cw.onchange = () => { commitOrSave(before); before = null; };
 		}
 		qq('[data-lines]').forEach((b) => (b.onclick = () => { step(() => { S.opts.cardLines = +b.dataset.lines; }); renderSheet(); }));
 		qq('[data-spans]').forEach((b) => (b.onclick = () => { noAnim = true; step(() => { S.opts.spanStyle = b.dataset.spans === 'blocks' ? 'blocks' : 'threads'; }); renderSheet(); }));
@@ -2046,9 +2067,10 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 			let before: string = null;
 			const p = S.palette.find((x) => x.id === el.dataset.pc);
 			el.addEventListener('focus', () => { before = snapshot(); });
-			el.addEventListener('pointerdown', () => { before = before || snapshot(); });
-			el.addEventListener('input', () => { p.hex = el.value; closest(el, '.pchip').style.setProperty('--cc', el.value); const hx = q<HTMLInputElement>(`[data-ph="${p.id}"]`); if (hx) hx.value = el.value; invalidate(); });
-			el.addEventListener('change', () => { commit(before); before = null; renderSheet(); });
+			el.addEventListener('pointerdown', () => { before = before ?? snapshot(); });
+			// the native picker can keep sending changes after the first one (and after a redraw), so snapshot again when needed
+			el.addEventListener('input', () => { before = before ?? snapshot(); p.hex = el.value; closest(el, '.pchip').style.setProperty('--cc', el.value); const hx = q<HTMLInputElement>(`[data-ph="${p.id}"]`); if (hx) hx.value = el.value; invalidate(); });
+			el.addEventListener('change', () => { commitOrSave(before); before = null; renderSheet(); });
 		});
 		qq<HTMLInputElement>('[data-ph]').forEach((el) => (el.onchange = () => {
 			const p = S.palette.find((x) => x.id === el.dataset.ph), hx = normHex(el.value);

@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.6.5 (beta)
+
+- Settings panel fixes:
+  - The card-width slider and colour pickers always record an undo step and save, including when changed with the keyboard or changed several times in a row.
+  - Toggling a festival month keeps events on their named day and updates the month summary.
+  - An empty range field says "Enter a year." instead of a misleading error.
+  - Leap rules that don't make sense (like "except every 3" with "every 4") get a warning.
+  - Importing a calendar replaces its weekdays and leap rules instead of keeping the old ones.
+  - Renaming a unit or a month updates every label in the panel.
+  - Redrawing the panel keeps your place.
+
 ## 0.6.4 (beta)
 
 - Fixed: moving a card together with a card pinned to it (arrow keys or dragging a selection) moved the pinned card twice.
