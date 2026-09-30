@@ -2667,8 +2667,10 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 				invalidate();
 				const box = createDiv();
 				setHTML(box, dateFields(key, v));
-				q1(p, `[data-d="${key}Y"]`).parentElement.replaceWith(box.firstElementChild);
-				bindDates();
+				// update the fields in place: redrawing the row would drop the focus Tab is moving into it
+				const fresh = qa<HTMLInputElement | HTMLSelectElement>(box, '[data-d]'), old = qa<HTMLInputElement | HTMLSelectElement>(p, `[data-d^="${key}"]`);
+				if (fresh.length === old.length && fresh.every((f, i) => f.dataset.d === old[i].dataset.d && f.tagName === old[i].tagName)) fresh.forEach((f, i) => (old[i].value = f.value));
+				else { q1(p, `[data-d="${key}Y"]`).parentElement.replaceWith(box.firstElementChild); bindDates(); }
 			};
 			const bindDates = () => { ['s', 'e'].forEach((k) => qa(p, `[data-d^="${k}"]`).forEach((el) => (el.onchange = () => apply(k === 's' ? 'start' : 'end', k)))); };
 			bindDates();

@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.8.23 (beta)
+
+- Tabbing out of an era's date fields applies the date and keeps focus in the era editor.
+
 ## 0.8.22 (beta)
 
 - Escape while drawing a selection box puts the selection back as it was.
