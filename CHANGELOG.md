@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.8.19 (beta)
+
+- 15 new end-to-end tests for merging outside edits, sharing changes between panes and two timelines syncing one note.
+
 ## 0.8.18 (beta)
 
 - On touch screens, pressing and holding a card opens its menu (a shorter hold still picks it up to drag).

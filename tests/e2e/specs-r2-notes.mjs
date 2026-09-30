@@ -781,3 +781,208 @@ test('P07 Aerth: opening the Notes settings tab (create-from-notes scan) — pro
 	console.log(`    PERF P07 notes tab ${ms}ms\n      ` + top.join('\n      '));
 	t.ok(ms < 1500, 'notes tab under 1.5s: ' + ms);
 });
+
+/* =====================================================================
+   R2M: three-way merge of outside edits, pane sharing, two synced timelines (pass 2)
+   ===================================================================== */
+const CH = 'Chronicle of Veld.evra';
+const writeOut = (p, d, path = CH) => p.ev(`app.vault.adapter.write(${J(path)}, ${J(typeof d === 'string' ? d : J(d, null, '\t'))}).then(() => 1)`);
+const evT = (h, id) => h.doc().then((d) => (d.events.find((e) => e.id === id) || {}).t);
+/** Nudge a card a step later by keyboard, leaving an unsaved change. */
+const nudge = async (p, h, title, key = 'ArrowDown') => { const id = (await h.ev(title)).id; await p.ev(`${h.tl}.focusEvent(${J(id)})`); await p.sleep(700); await p.ev(`document.querySelector('${A} .stage').focus()`); await p.key(key); await p.sleep(60); return id; };
+const settle = async (p, h, path = CH) => { await p.sleep(900); return h.saved(path); };
+
+test('R2M01 merge: local move + outside add of a new card: both kept', async (p, h, t) => {
+	await h.open(); const disk = await readJ(p, CH);
+	const id = await nudge(p, h, 'Siege of the Keep begins'); const moved = await evT(h, id);
+	disk.events.push({ id: 'out1', t: 500, title: 'Added outside', side: 'b' });
+	await writeOut(p, disk);
+	const s = await settle(p, h);
+	t.eq(s.events.find((e) => e.id === id).t, moved, 'local move kept');
+	t.ok(s.events.some((e) => e.id === 'out1'), 'outside card kept');
+});
+test('R2M02 merge: outside deletes the card being moved here: the local edit brings it back, others deleted outside stay deleted', async (p, h, t) => {
+	await h.open(); const disk = await readJ(p, CH);
+	const id = await nudge(p, h, 'Siege of the Keep begins'); const moved = await evT(h, id);
+	const gone = disk.events.find((e) => e.file === 'Veld').id;
+	disk.events = disk.events.filter((e) => e.id !== id && e.id !== gone);
+	await writeOut(p, disk);
+	const s = await settle(p, h);
+	const e = s.events.find((x) => x.id === id);
+	t.ok(e && e.t === moved, 'moved card kept (edit wins over outside delete)');
+	t.ok(!s.events.some((x) => x.id === gone), 'untouched card deleted outside stays deleted');
+});
+test('R2M03 merge: local delete + outside edit of the same card: the outside edit is not lost silently', async (p, h, t) => {
+	await h.open(); const disk = await readJ(p, CH);
+	const id = await nudge(p, h, 'Siege of the Keep begins'); await p.key('Delete'); await p.sleep(100);
+	disk.events.find((e) => e.id === id).text = 'Rewritten outside';
+	await writeOut(p, disk);
+	const s = await settle(p, h);
+	const e = s.events.find((x) => x.id === id);
+	t.ok(e && e.text === 'Rewritten outside', 'edited-outside card survives a local delete: ' + J(e && e.text));
+});
+test('R2M04 merge: same field changed on both sides: this side wins, other fields from outside kept', async (p, h, t) => {
+	await h.open(); const disk = await readJ(p, CH);
+	const id = await nudge(p, h, 'Siege of the Keep begins'); const moved = await evT(h, id);
+	const d = disk.events.find((e) => e.id === id); d.t = moved + 200; d.text = 'Text from outside';
+	await writeOut(p, disk);
+	const s = await settle(p, h);
+	const e = s.events.find((x) => x.id === id);
+	t.eq(e.t, moved, 'date: on-screen wins'); t.eq(e.text, 'Text from outside', 'text: outside kept');
+});
+test('R2M05 merge: local era edit + outside era add and calendar rename both kept', async (p, h, t) => {
+	await h.open(); const disk = await readJ(p, CH);
+	await p.ev(`(() => { return 1; })()`);
+	// local: rename an era via the model + a committed change (nudge a card to make it unsaved as well)
+	await nudge(p, h, 'Siege of the Keep begins');
+	const era0 = (await h.doc()).eras[0];
+	disk.eras.push({ id: 'eout', name: 'Outside era', start: 70 * 360, end: 75 * 360, parent: null, color: null });
+	disk.cal.months[0].name = 'Outmonth';
+	await writeOut(p, disk);
+	const s = await settle(p, h);
+	t.ok(s.eras.some((e) => e.id === 'eout'), 'outside era kept'); t.eq(s.cal.months[0].name, 'Outmonth', 'outside month rename kept');
+	t.ok(s.eras.some((e) => e.id === era0.id), 'local eras kept');
+});
+test('R2M06 merge: local month reorder vs outside month rename keeps the local order', async (p, h, t) => {
+	await h.open(); const disk = await readJ(p, CH);
+	// reorder months locally through the doc, recorded as an unsaved change
+	await h.openSheet('calendar');
+	await p.ev(`(() => { const rows = document.querySelectorAll('${A} .mrow'); const dt = new DataTransfer(); rows[0].dispatchEvent(new DragEvent('dragstart', {bubbles: true, dataTransfer: dt})); rows[2].dispatchEvent(new DragEvent('dragover', {bubbles: true, dataTransfer: dt, cancelable: true})); rows[2].dispatchEvent(new DragEvent('drop', {bubbles: true, dataTransfer: dt, cancelable: true})); return 1; })()`); await p.sleep(250);
+	const localOrder = (await h.doc()).cal.months.map((m) => m.id).join();
+	disk.cal.months[5].name = 'Renamed outside';
+	await writeOut(p, disk);
+	const s = await settle(p, h);
+	t.eq(s.cal.months.map((m) => m.id).join(), localOrder, 'local month order kept');
+	t.ok(s.cal.months.some((m) => m.name === 'Renamed outside'), 'outside rename kept');
+});
+test('R2M07 invalid JSON written outside while there are unsaved changes: the changes are not lost when the file is fixed', async (p, h, t) => {
+	await h.open(); const disk = await readJ(p, CH);
+	const id = await nudge(p, h, 'Siege of the Keep begins'); const moved = await evT(h, id);
+	await writeOut(p, '{ half written'); await p.sleep(800);
+	const errShown = await p.ev(`!!document.querySelector('.workspace-leaf.mod-active .evra-error')`);
+	t.eq(await p.ev(`app.vault.adapter.read(${J(CH)})`), '{ half written', 'broken file left alone');
+	await writeOut(p, disk); await p.sleep(1200);
+	const now = await h.doc().catch(() => null);
+	t.ok(now && now.events.find((e) => e.id === id).t === moved, `unsaved move survives a broken-then-fixed file (error view: ${errShown}, t now ${now && now.events.find((e) => e.id === id).t}, moved ${moved})`);
+});
+test('R2M08 rapid outside writes (10 in 1s) while editing locally: every outside card and the local edit survive', async (p, h, t) => {
+	await h.open(); const disk = await readJ(p, CH);
+	const id = await nudge(p, h, 'Siege of the Keep begins');
+	for (let i = 0; i < 10; i++) { disk.events.push({ id: 'r' + i, t: 100 + i, title: 'Rapid ' + i, side: 'b' }); await writeOut(p, disk); await p.sleep(100); if (i === 4) { await p.ev(`document.querySelector('${A} .stage').focus()`); await p.key('ArrowDown'); } }
+	const moved = await evT(h, id);
+	const s = await settle(p, h); await p.sleep(2500); const s2 = await h.saved();
+	const miss = Array.from({ length: 10 }, (_, i) => 'r' + i).filter((x) => !s2.events.some((e) => e.id === x));
+	t.eq(miss.join(), '', 'all rapid outside cards kept');
+	t.eq(s2.events.find((e) => e.id === id).t, moved, 'local edits kept');
+	t.ok(valid(s2) && new Set(s2.events.map((e) => e.id)).size === s2.events.length, 'valid, unique ids');
+});
+test('R2M09 undo right after a merge does not revert the outside changes', async (p, h, t) => {
+	await h.open(); const disk = await readJ(p, CH);
+	const id = await nudge(p, h, 'Siege of the Keep begins');
+	disk.events.push({ id: 'out9', t: 500, title: 'Outside nine', side: 'b' });
+	await writeOut(p, disk); await p.sleep(900);
+	await p.ev(`document.querySelector('${A} .stage').focus()`); await p.key('z', 'ctrl'); await p.key('z', 'ctrl'); await p.sleep(300);
+	const s = await h.saved();
+	t.ok(s.events.some((e) => e.id === 'out9'), 'outside card still there after undo');
+});
+test('R2M10 an outside write while a card title is being typed keeps the typing', async (p, h, t) => {
+	await h.open(); const disk = await readJ(p, CH);
+	const id = (await h.ev('Siege of the Keep begins')).id;
+	await p.ev(`${h.tl}.focusEvent(${J(id)})`); await p.sleep(700);
+	const c = await h.card('Siege of the Keep begins', '.dt'); await p.dbl(c.x, c.y); await p.sleep(300);
+	await p.key('a', 'ctrl'); await p.type('Typed while outside wrote');
+	disk.events.push({ id: 'out10', t: 500, title: 'Outside ten', side: 'b' });
+	await writeOut(p, disk); await p.sleep(900);
+	await p.type(' more'); await p.key('Escape'); await p.sleep(300);
+	const s = await h.saved();
+	const e = s.events.find((x) => x.id === id);
+	t.ok(/^Typed while outside wrote/.test(e.title), 'typed title kept: ' + e.title);
+	t.ok(s.events.some((x) => x.id === 'out10'), 'outside card kept');
+});
+
+/* ---------- pane sharing ---------- */
+const L3 = 'app.workspace.getLeavesOfType("evra")';
+const inPane = async (p, i) => { await p.ev(`app.workspace.setActiveLeaf(${L3}[${i}], {focus: true})`); await p.sleep(150); };
+test('R2M11 three panes: an edit in each shows in all, and the file has all three', async (p, h, t) => {
+	await h.open();
+	await p.ev(`app.workspace.duplicateLeaf(app.workspace.activeLeaf, 'vertical').then(() => 1)`); await p.sleep(600);
+	await p.ev(`app.workspace.duplicateLeaf(app.workspace.activeLeaf, 'horizontal').then(() => 1)`); await p.sleep(900);
+	t.eq(await p.ev(`${L3}.length`), 3, 'three panes');
+	const titles = ['Siege of the Keep begins', 'Death of Isolde', 'Plague of Salt'], ids = [];
+	for (let i = 0; i < 3; i++) { await inPane(p, i); ids.push(await nudge(p, h, titles[i])); }
+	const per = await p.ev(`${L3}.map(l => ${J(ids)}.map(id => l.view.timeline.getDoc().events.find(e => e.id === id).t).join('/'))`);
+	t.ok(per.every((x) => x === per[0]), 'panes agree: ' + per.join(' | '));
+	await p.ev(`Promise.all(${L3}.map(l => l.view.save())).then(() => 1)`); await p.sleep(1500);
+	const d = await readJ(p, CH), want = per[0].split('/').map(Number);
+	t.eq(ids.map((id) => d.events.find((e) => e.id === id).t).join('/'), want.join('/'), 'file has all three');
+});
+test('R2M12 undo in one pane after the other pane edited: no card jumps back to a stale state', async (p, h, t) => {
+	await h.open();
+	await p.ev(`app.workspace.duplicateLeaf(app.workspace.activeLeaf, 'vertical').then(() => 1)`); await p.sleep(900);
+	await inPane(p, 0); const a = await nudge(p, h, 'Siege of the Keep begins'); const ta = await evT(h, a);
+	await inPane(p, 1); const b = await nudge(p, h, 'Death of Isolde'); const tb = await evT(h, b);
+	await inPane(p, 0); await p.ev(`document.querySelector('${A} .stage').focus()`); await p.key('z', 'ctrl'); await p.sleep(300);
+	const docs = await p.ev(`${L3}.map(l => { const d = l.view.timeline.getDoc(); return [d.events.find(e => e.id === ${J(a)}).t, d.events.find(e => e.id === ${J(b)}).t].join('/'); })`);
+	t.ok(docs[0] === docs[1], 'panes agree after undo: ' + docs.join(' | '));
+	t.eq(Number(docs[0].split('/')[1]), tb, 'the other pane\'s edit is not undone by this pane: ' + docs[0] + ' (a moved ' + ta + ')');
+});
+test('R2M13 typing a title in one pane while the other pane edits keeps the typed text', async (p, h, t) => {
+	await h.open();
+	await p.ev(`app.workspace.duplicateLeaf(app.workspace.activeLeaf, 'vertical').then(() => 1)`); await p.sleep(900);
+	await inPane(p, 0);
+	const id = (await h.ev('Siege of the Keep begins')).id;
+	await p.ev(`${h.tl}.focusEvent(${J(id)})`); await p.sleep(700);
+	const c = await h.card('Siege of the Keep begins', '.dt'); await p.dbl(c.x, c.y); await p.sleep(300);
+	await p.key('a', 'ctrl'); await p.type('Half typed');
+	// the other pane changes a different card, without taking focus
+	await p.ev(`(() => { const v = ${L3}[1].view; const d = v.timeline.getDoc(); const e = d.events.find(x => x.title === 'Death of Isolde'); v.timeline.focusEvent(e.id); return 1; })()`);
+	await p.ev(`(() => { const v = ${L3}[1].view; v.timeline.run('flip'); return 1; })()`).catch(() => {}); await p.sleep(400);
+	await inPane(p, 0);
+	const still = await p.ev(`(() => { const e = document.querySelector('${A} .evra-card.editing'); return e ? e.textContent : null; })()`);
+	await p.type(' done'); await p.key('Escape'); await p.sleep(300);
+	const e = (await h.doc()).events.find((x) => x.id === id);
+	t.ok(/^Half typed/.test(e.title), 'typed text kept (editing after other pane change: ' + J(still && still.slice(0, 40)) + '): ' + e.title);
+});
+test('R2M14 fuzz 30s: two panes, with outside writes mixed in (seed 909)', async (p, h, t) => {
+	await h.open(); await p.ev(`app.workspace.duplicateLeaf(app.workspace.activeLeaf, 'vertical').then(() => 1)`); await p.sleep(800);
+	const rnd = rng(909), t0 = Date.now(), log = []; let i = 0, outs = 0;
+	const keys = ['j', 'k', 's', 'n', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'Delete', 'Escape', 'Enter', '3', 'z', 'f'];
+	while (Date.now() - t0 < 30000) {
+		const r = rnd(), pane = rnd() < 0.5 ? 0 : 1;
+		const s = await p.ev(`(() => { const e = ${L3}[${pane}].view.contentEl.querySelector('.stage'); if (!e) return null; const r = e.getBoundingClientRect(); return {l: r.left, t: r.top, w: r.width, h: r.height}; })()`);
+		if (!s) { await keepFront(p); continue; }
+		const x = s.l + 5 + rnd() * (s.w - 10), y = s.t + 5 + rnd() * (s.h - 10);
+		let a;
+		if (r < 0.25) { a = 'click' + pane; await p.click(x, y); }
+		else if (r < 0.4) { a = 'drag' + pane; await p.drag(x, y, s.l + rnd() * s.w, s.t + rnd() * s.h, 4); }
+		else if (r < 0.5) { a = 'wheel'; await p.wheel(x, y, (rnd() - 0.5) * 800, rnd() < 0.3); }
+		else if (r < 0.85) { const k = keys[Math.floor(rnd() * keys.length)]; const m = k === 'z' || rnd() < 0.1 ? ['ctrl'] : []; a = 'key ' + k + m; await p.key(k, ...m); }
+		else { a = 'outside'; outs++; await p.ev(`(async () => { const d = JSON.parse(await app.vault.adapter.read(${J(CH)})); d.events.push({ id: 'fz' + ${i}, t: ${Math.floor(rnd() * 20000)}, title: 'Fuzz ${i}', side: 'b' }); if (d.events.length > 3 && ${rnd()} < 0.3) d.events.splice(1, 1); await app.vault.adapter.write(${J(CH)}, JSON.stringify(d)); })().then(() => 1)`); await p.sleep(150); }
+		log.push(a); i++;
+		if (p.errors.length) t.ok(false, `error after step ${i} (${log.slice(-6).join(', ')}): ${p.errors[0].slice(0, 300)}`);
+	}
+	await p.key('Escape'); await keepFront(p); await p.sleep(2500);
+	await p.ev(`Promise.all(${L3}.map(l => l.view.save())).then(() => 1)`); await p.sleep(1200);
+	const docs = await p.ev(`${L3}.map(l => JSON.stringify(l.view.timeline.getDoc().events.map(e => [e.id, e.t]).sort()))`);
+	const disk = await readJ(p, CH);
+	t.ok(valid(disk) && new Set(disk.events.map((e) => e.id)).size === disk.events.length, 'valid file after ' + i + ' steps, ' + outs + ' outside writes');
+	t.ok(docs[0] === docs[1], 'panes agree');
+	t.eq(JSON.stringify(disk.events.map((e) => [e.id, e.t]).sort()), docs[0], 'disk agrees with panes');
+});
+
+/* ---------- two timelines syncing one note ---------- */
+test('R2M15 two synced timelines: a card move in one reaches the note; closing and reopening the other does not revert it', async (p, h, t) => {
+	await make(p, 'Other.evra', J({ name: 'Other', opts: { sync: { on: true } }, events: [{ id: 'o1', t: 50 * 360, title: '', side: 'b', file: 'Treaty of Sallow' }], eras: [] }));
+	await h.open(); await syncOn(p, h);
+	await p.ev(`app.workspace.getLeaf('split').openFile(app.vault.getAbstractFileByPath('Other.evra')).then(() => 1)`); await p.sleep(1500);
+	await inPane(p, 0);
+	const id = await nudge(p, h, 'Treaty of Sallow'); await p.key('ArrowDown'); await p.key('ArrowDown'); await p.sleep(2500);
+	const main = await evT(h, id), y = Math.floor(main / 360);
+	t.eq((await fmOf(p, 'Treaty of Sallow.md'))['timeline-year'], y, 'note has the moved year');
+	// close Other, reopen it: its stale card must not rewrite the note back
+	await p.ev(`(async () => { const l = app.workspace.getLeavesOfType('evra').find(l => l.view.file.path === 'Other.evra'); await l.view.save(); l.detach(); })().then(() => 1)`); await p.sleep(500);
+	await p.ev(`app.workspace.getLeaf('split').openFile(app.vault.getAbstractFileByPath('Other.evra')).then(() => 1)`); await p.sleep(3000);
+	t.eq((await fmOf(p, 'Treaty of Sallow.md'))['timeline-year'], y, 'reopening Other does not write its old year back');
+	const mainNow = await p.ev(`app.workspace.getLeavesOfType('evra').map(l => l.view).find(v => v.file.path === ${J(CH)}).timeline.getDoc().events.find(e => e.id === ${J(id)}).t`);
+	t.eq(Math.floor(mainNow / 360), y, 'main card stays');
+});
