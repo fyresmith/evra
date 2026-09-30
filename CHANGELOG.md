@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.8.33 (beta)
+
+- An open menu is moved back on screen when the window or pane is resized.
+
 ## 0.8.32 (beta)
 
 - On the one-sided narrow layout, the across-the-line arrow keys and “Move to other side” are left out, since they'd change nothing visible.

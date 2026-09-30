@@ -2847,7 +2847,11 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 	cleanups.push(() => root.removeEventListener('keydown', onKey));
 
 	/* ---------- start ---------- */
-	const ro = new ResizeObserver(() => { stageRect = null; stageSize = null; noAnim = true; invalidate(); });
+	const ro = new ResizeObserver(() => {
+		stageRect = null; stageSize = null; noAnim = true; invalidate();
+		// an open popover stays where it was put, kept inside the stage as it shrinks (as openPop places it)
+		if (!pop.hidden) { const W = stage.clientWidth, H = stage.clientHeight, w = pop.offsetWidth, h = pop.offsetHeight; pop.setCssStyles({ left: clamp(parseFloat(pop.style.left) || 0, 8, W - w - 8) + 'px', top: clamp(parseFloat(pop.style.top) || 0, 8, H - h - 8) + 'px' }); }
+	});
 	ro.observe(stage);
 	listen(doc(), 'pointerdown', onDocPointer, true);
 	// The first frame with a size decides the starting view: the workspace's saved view, the file's, or everything
