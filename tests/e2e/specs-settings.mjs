@@ -539,20 +539,23 @@ const monkey = async (p, h, t, { seed, steps, panel, size }) => {
 	await h.open();
 	let s0 = seed; const rnd = () => ((s0 = (s0 * 1103515245 + 12345) % 2147483648) / 2147483648);
 	const keys = ['j', 'k', 'e', 's', 'n', 'g', 'b', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Delete', 'Escape', 'Enter', '1', '0', '+', '-', 'Tab', 'z', 'f', 'Backspace', '.', '?', 'a', '3'];
-	const log = []; let firstErr = null;
+	const log = []; let firstErr = null, skips = 0;
 	const W = size ? size[0] : p.width, H = size ? size[1] : p.height;
 	for (let i = 0; i < steps; i++) {
 		if (panel && i % 40 === 0) { const tabs = ['calendar', 'formats', 'timeline', 'cards', 'colors']; await p.ev(`(() => { const v = ${h.view}; return 1; })()`); try { await h.openSheet(tabs[Math.floor(rnd() * tabs.length)]); } catch { /* hidden */ } }
 		const r = rnd(), x = 2 + rnd() * (W - 4), y = 2 + rnd() * (H - 4);
 		let a;
+		// stay out of Obsidian's own chrome (window buttons, tab headers, ribbon), which would close the window or the tab
+		if (await p.ev(`(() => { const e = document.elementFromPoint(${x}, ${y}); return !e || !e.closest('.workspace-leaf.mod-active .evra-root'); })()`)) { if (++skips % 30 === 0) await p.ev(`(() => { const l = app.workspace.getLeavesOfType('evra')[0]; if (l) app.workspace.setActiveLeaf(l, {focus: true}); return 1; })()`); if (skips > 3000) break; i--; continue; }
 		if (r < 0.3) { a = `click ${x | 0},${y | 0}`; await p.click(x, y); }
 		else if (r < 0.38) { a = 'dbl'; await p.dbl(x, y); }
-		else if (r < 0.5) { a = 'drag'; await p.drag(x, y, 2 + rnd() * (W - 4), 2 + rnd() * (H - 4), 4); }
+		else if (r < 0.5) { a = 'drag'; const s = await h.stage(); await p.drag(x, y, s.l + rnd() * s.w, s.t + rnd() * s.h, 4); }
 		else if (r < 0.6) { a = 'wheel'; await p.wheel(x, y, (rnd() - 0.5) * 1200, rnd() < 0.4, rnd() < 0.2 ? (rnd() - 0.5) * 600 : 0); }
 		else if (r < 0.88) { const k = keys[Math.floor(rnd() * keys.length)]; const m = rnd() < 0.15 ? ['ctrl'] : rnd() < 0.1 ? ['shift'] : []; a = 'key ' + k + m; await p.key(k, ...m); }
 		else if (r < 0.93) { a = 'right'; await p.right(x, y); }
 		else { a = 'type'; await p.type(rnd() < 0.5 ? '12' : 'x<b>'); }
 		log.push(a);
+		if (i % 25 === 0) console.log('  monkey', seed, i, a);
 		if (p.errors.length && !firstErr) firstErr = `step ${i} after [${log.slice(-6).join('; ')}]: ${p.errors[0].slice(0, 300)}`;
 		if (i % 20 === 0) await p.ev(`(() => { document.querySelectorAll('.modal-close-button').forEach(b => b.click()); const l = app.workspace.getLeavesOfType('evra')[0]; if (!l) return 0; if (app.workspace.activeLeaf !== l) app.workspace.setActiveLeaf(l, {focus: true}); return 1; })()`);
 		if (!(await p.ev(`app.workspace.getLeavesOfType('evra').length`))) await h.open();
@@ -572,3 +575,32 @@ const monkey = async (p, h, t, { seed, steps, panel, size }) => {
 test('R9 monkey with the settings panel open (seed 7)', (p, h, t) => monkey(p, h, t, { seed: 7, steps: 350, panel: true }));
 test('R10 monkey at a small window (seed 99)', (p, h, t) => monkey(p, h, t, { seed: 99, steps: 300, size: [420, 360] }));
 test('R11 monkey seed 2024', (p, h, t) => monkey(p, h, t, { seed: 2024, steps: 400 }));
+test('S19 defaults carry calendar, formats, colours, card options and direction, but not events', async (p, h, t) => {
+	await h.open(); await h.openSheet('cards');
+	await clickSheet(p, h, '[data-lines="2"]');
+	await h.openSheet('formats'); await typeInto(p, h, '[data-fmt=year]', '{Y} AV');
+	await h.openSheet('colors'); await typeInto(p, h, '[data-ph="1"]', '#0000ff');
+	await h.openSheet('timeline'); await clickSheet(p, h, '[data-o=ltr]'); await clickSheet(p, h, '[data-k=tDef]');
+	const def = await p.ev(`JSON.parse(JSON.stringify(app.plugins.plugins.evra.settings.defaults))`);
+	t.ok(def && !def.events && !def.eras, 'no events or eras in defaults');
+	await clickSheet(p, h, '[data-k=tNew]'); await p.sleep(1200);
+	const d = await h.doc();
+	t.eq(d.events.length, 0, 'empty'); t.eq(d.cal.fmt.year, '{Y} AV', 'format'); t.eq(d.palette[0].hex, '#0000ff', 'colour');
+	t.eq(d.opts.cardLines, 2, 'lines'); t.eq(d.orientation, 'ltr', 'direction');
+	t.eq(d.opts.sync.written.length, 0, 'no sync bookkeeping');
+});
+test('R12 external edit while a card is being edited, and deleting the file while open', async (p, h, t) => {
+	await h.open();
+	const c = await h.card('Siege of the Keep begins', '.dt'); await p.dbl(c.x, c.y); await p.sleep(300);
+	await p.key('a', 'ctrl'); await p.type('Typing now');
+	const s = JSON.parse(await p.ev(`app.vault.adapter.read('Chronicle of Veld.evra')`));
+	s.events = s.events.filter((e) => e.title !== 'Siege of the Keep begins');
+	await write(p, 'Chronicle of Veld.evra', JSON.stringify(s)); await p.sleep(800);
+	await p.key('Escape'); await p.sleep(300);
+	const d = await h.doc();
+	t.ok(d.events.every((e) => typeof e.title === 'string'), 'doc valid');
+	t.ok(!/NaN/.test(JSON.stringify(d)), 'no NaN');
+	// delete the file while it is open
+	await p.ev(`app.vault.delete(app.vault.getAbstractFileByPath('Chronicle of Veld.evra')).then(() => 1)`); await p.sleep(600);
+	t.ok(!(await p.ev(`!!app.vault.getAbstractFileByPath('Chronicle of Veld.evra')`)), 'not recreated');
+});

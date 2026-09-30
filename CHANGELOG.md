@@ -1,6 +1,10 @@
 # Changelog
 
-## 0.7.9
+## 0.7.10 (beta)
+
+- More end-to-end tests of the settings panel: every control's undo, malformed calendar imports, huge numbers, and random input with the panel open.
+
+## 0.7.9 (beta)
 
 - Ctrl/Cmd shortcuts such as undo and redo work while a card menu is open, and close it.
 - Moving a note keeps its cards linked when another note has the same name.
