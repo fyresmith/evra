@@ -1189,25 +1189,30 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 	}
 	function pasteClip(at: number | null) {
 		if (!clip) { toast('Copy a card first (Ctrl/⌘ C).'); return; }
-		const before = snapshot(), base = snap(at != null ? at : tAt(G.L / 2)), ids: string[] = [];
-		clip.forEach((c) => {
+		const ids = addClip(clip, snap(at != null ? at : tAt(G.L / 2)));
+		toast(ids.length === 1 ? 'Pasted 1 card' : `Pasted ${ids.length} cards`, true);
+	}
+	/** New cards from a copy (dates relative to its first card), placed from base on; selects them and records one step. */
+	function addClip(list: EvraEvent[], base: number) {
+		const before = snapshot(), ids: string[] = [];
+		list.forEach((c) => {
 			const ev: EvraEvent = { ...(JSON.parse(JSON.stringify(c)) as EvraEvent), id: uid(), t: base + c.t };
 			if (c.end != null) ev.end = base + c.end; else delete ev.end;
 			delete ev.rel;
 			fresh.add(ev.id); S.events.push(ev); ensureRange(ev); ids.push(ev.id);
 		});
 		setSel(ids); commit(before);
-		toast(ids.length === 1 ? 'Pasted 1 card' : `Pasted ${ids.length} cards`, true);
+		return ids;
 	}
-	function duplicateSel() { // copies within the timeline only: the clipboard and the copy buffer are left alone
-		const ids = selIds();
-		if (!ids.length) return;
-		const keep = clip;
-		clip = ids.map(evById).map((e) => ({ ...(JSON.parse(JSON.stringify(e)) as EvraEvent), t: e.t, end: e.end }));
-		const t0 = Math.min(...clip.map((e) => e.t));
-		clip = clip.map((e) => ({ ...e, t: e.t - t0, end: e.end != null ? e.end - t0 : undefined }));
-		pasteClip(stepT(t0, 1));
-		clip = keep;
+	/** A duplicate's date: one snap step later, keeping the day offset of a card nudged off the grid. */
+	const dupT = (t: number) => { const g = snap(t); return t + (stepT(g, 1) - g); };
+	// copies within the timeline only: the clipboard and the copy buffer are left alone
+	function duplicateSel() {
+		const evs = selIds().map(evById);
+		if (!evs.length) return;
+		const t0 = Math.min(...evs.map((e) => e.t));
+		const ids = addClip(evs.map((e) => ({ ...e, t: e.t - t0, end: e.end != null ? e.end - t0 : undefined })), dupT(t0));
+		toast(ids.length === 1 ? 'Duplicated 1 card' : `Duplicated ${ids.length} cards`, true);
 	}
 	function stepSel(dir: number) { // J / K: move the focus to the next or previous card in time
 		const list = [...S.events].sort((a, b) => a.t - b.t || a.id.localeCompare(b.id));
@@ -2567,7 +2572,7 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 			})()));
 			on('dup', () => {
 				closePop();
-				const before = snapshot(), c: EvraEvent = { ...(JSON.parse(JSON.stringify(ev)) as EvraEvent), id: uid(), t: stepT(ev.t, 1) };
+				const before = snapshot(), c: EvraEvent = { ...(JSON.parse(JSON.stringify(ev)) as EvraEvent), id: uid(), t: dupT(ev.t) };
 				if (c.end != null) c.end += c.t - ev.t;
 				fresh.add(c.id); S.events.push(c); ensureRange(c); sel = c.id; commit(before);
 			});

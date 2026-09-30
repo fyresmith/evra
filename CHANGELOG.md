@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.8.4 (beta)
+
+- Ctrl/⌘ D places the copy one snap step later keeping the card's exact day, like Duplicate in the card menu.
+
 ## 0.8.3 (beta)
 
 - Shift-clicking a selected card removes just that card, and right-clicking inside a selection opens the menu for all of it.
