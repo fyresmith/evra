@@ -2646,6 +2646,9 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 		const tg = e.target as HTMLElement, typing = tg.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(tg.tagName), mod = e.ctrlKey || e.metaKey, k = e.key.toLowerCase();
 		const done = () => { e.preventDefault(); e.stopPropagation(); };
 		if (mod && k === 'k' && !e.shiftKey && !e.altKey) { done(); openPalette(''); return; }
+		// a checkbox, slider or dropdown has no text undo of its own, so Ctrl/Cmd Z and Y still undo the timeline there
+		const texty = tg.isContentEditable || tg.tagName === 'TEXTAREA' || (tg.tagName === 'INPUT' && !/^(checkbox|radio|range|color|button)$/.test((tg as HTMLInputElement).type));
+		if (typing && !texty && mod && (k === 'z' || k === 'y')) { done(); if (k === 'y' || e.shiftKey) redoF(); else undo(); return; }
 		if (typing) return;
 		if (drag && drag.type !== 'pan' && drag.moved && !/^(Alt|Shift|Escape)$/.test(e.key)) { done(); return; } // keys mid-drag would edit what the drag is about to commit
 		if (mod && k === 'z') { done(); if (e.shiftKey) redoF(); else undo(); return; }

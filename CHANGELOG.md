@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.7.13 (beta)
+
+- Ctrl/⌘ Z and Y undo and redo while a checkbox, slider or dropdown in a menu or the settings has focus.
+
 ## 0.7.12 (beta)
 
 - Delete, undo and other keys pressed in the middle of dragging a card are ignored instead of throwing errors or undoing the wrong step.
