@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.7.27 (beta)
+
+- 60 new end-to-end tests for note sync, embeds, file moves, broken files, random input, leaks and speed on a large world.
+
 ## 0.7.26 (beta)
 
 - Escape closes the settings panel even right after ticking a checkbox.
