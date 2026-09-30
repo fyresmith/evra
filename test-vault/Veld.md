@@ -1,4 +1,3 @@
-# Veld
 River city at the mouth of the Sallow, built on salt and fish. Founded by the fisher-clans in Year 0.
 
 See [[Queen Isolde]] and [[The Long War]].

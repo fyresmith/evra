@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.2 (beta)
+
+- The sample notes no longer repeat their name as a heading under Obsidian's own title.
+
 ## 0.5.1 (beta)
 
 - Fixed: clicking a button in the settings panel right after editing a field did nothing (saving the field redrew the panel under the pointer).

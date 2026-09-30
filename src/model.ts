@@ -150,17 +150,17 @@ export function parseCalendarImport(txt: string): { months: Month[]; leaps: Leap
 /* ---------- the sample world ---------- */
 const D = (y: number, m = 0, d = 0) => y * 360 + m * 30 + d;
 export const SAMPLE_NOTES: Record<string, string> = {
-	'Veld': '# Veld\nRiver city at the mouth of the Sallow, built on salt and fish. Founded by the fisher-clans in Year 0.\n\nSee [[Queen Isolde]] and [[The Long War]].\n\n## The war years\n```evra\ntimeline: Chronicle of Veld\nera: Reign of Ash\n```\n',
-	'The Salt Moot': '---\nyear: 12\nmonth: Bloom\n---\n# The Salt Moot\nThe clans gather at the salt flats and agree to one harbour-master.\n',
-	'Battle of the Shoals': '---\ntimeline-year: 36\ntimeline-month: Ember\nday: 9\n---\n# Battle of the Shoals\nThe Heron’s predecessor runs aground mid-battle; both fleets lose a third of their ships.\n',
-	'Queen Isolde': '# Queen Isolde\nFirst crowned ruler of Veld. Took the throne in Year 22 after the clan moots failed to agree on anything for a decade.\n\nHer rule is remembered as the **Reign of Ash**: long, stubborn, and mostly at war. See [[The Long War]].\n',
-	'The Long War': '# The Long War\nFourteen years of war between Veld and the Ashen League over the salt tolls of the Sallow.\n\n## Key events\n- [[Fall of the River Keep]]\n- [[Treaty of Sallow]]\n',
-	'Mira Ashdown': '# Mira Ashdown\nCartographer, born in the war years. Her charts of the delta shoals are still used by river pilots.\n\nSailed on [[The Heron]]. Founded [[The Archive]].\n',
-	'Fall of the River Keep': '# Fall of the River Keep\nThe Keep falls after a four-month siege, opened from within by agents of the [[Pale Court]]. The Ashen League holds the river mouth for six years.\n',
-	'Treaty of Sallow': '# Treaty of Sallow\nEnds [[The Long War]]. Veld keeps the river mouth; the League keeps the salt flats. Signed on a barge mid-river so neither side had to cross.\n',
-	'The Heron': '---\ncover: "[[The Heron.svg]]"\n---\n# The Heron\nThree-masted survey ship. Spent three years charting the outer delta with [[Mira Ashdown]] aboard.\n',
-	'The Archive': '# The Archive\nLibrary and sky-record office in the old customs house of Veld.\n',
-	'Pale Court': '# Pale Court\nA secret society said to meet beneath the River Keep. Everything about it is disputed, including whether it exists.\n',
+	'Veld': 'River city at the mouth of the Sallow, built on salt and fish. Founded by the fisher-clans in Year 0.\n\nSee [[Queen Isolde]] and [[The Long War]].\n\n## The war years\n```evra\ntimeline: Chronicle of Veld\nera: Reign of Ash\n```\n',
+	'The Salt Moot': '---\nyear: 12\nmonth: Bloom\n---\nThe clans gather at the salt flats and agree to one harbour-master.\n',
+	'Battle of the Shoals': '---\ntimeline-year: 36\ntimeline-month: Ember\nday: 9\n---\nThe Heron’s predecessor runs aground mid-battle; both fleets lose a third of their ships.\n',
+	'Queen Isolde': 'First crowned ruler of Veld. Took the throne in Year 22 after the clan moots failed to agree on anything for a decade.\n\nHer rule is remembered as the **Reign of Ash**: long, stubborn, and mostly at war. See [[The Long War]].\n',
+	'The Long War': 'Fourteen years of war between Veld and the Ashen League over the salt tolls of the Sallow.\n\n## Key events\n- [[Fall of the River Keep]]\n- [[Treaty of Sallow]]\n',
+	'Mira Ashdown': 'Cartographer, born in the war years. Her charts of the delta shoals are still used by river pilots.\n\nSailed on [[The Heron]]. Founded [[The Archive]].\n',
+	'Fall of the River Keep': 'The Keep falls after a four-month siege, opened from within by agents of the [[Pale Court]]. The Ashen League holds the river mouth for six years.\n',
+	'Treaty of Sallow': 'Ends [[The Long War]]. Veld keeps the river mouth; the League keeps the salt flats. Signed on a barge mid-river so neither side had to cross.\n',
+	'The Heron': '---\ncover: "[[The Heron.svg]]"\n---\nThree-masted survey ship. Spent three years charting the outer delta with [[Mira Ashdown]] aboard.\n',
+	'The Archive': 'Library and sky-record office in the old customs house of Veld.\n',
+	'Pale Court': 'A secret society said to meet beneath the River Keep. Everything about it is disputed, including whether it exists.\n',
 };
 export const SAMPLE_COVER = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 70"><rect width="240" height="70" fill="#254f63"/><path d="M0 52 Q30 44 60 52 T120 52 T180 52 T240 52 V70 H0z" fill="#1d3d4d"/><path d="M112 16 L112 48 M112 18 L138 44 H112 M110 24 L90 44 H110" stroke="#e8dcc0" stroke-width="2" fill="#e8dcc0" fill-opacity=".85"/><path d="M84 48 H146 L138 56 H92z" fill="#c9a36b"/></svg>\n';
 
