@@ -1198,10 +1198,11 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 		commit(before);
 	}
 	function toggleSpanSel() {
-		const ev = evById(sel);
-		if (!ev) return;
-		const before = snapshot();
-		if (ev.end != null) { delete ev.end; delete ev.os; delete ev.oe; delete ev.life; } else { ev.end = yearLater(ev.t); ensureRange(ev); }
+		const evs = selIds().map(evById).filter(Boolean);
+		if (!evs.length) return;
+		// like the other keys, S acts on the whole selection: all become moments if the focused card is a span, else all spans
+		const before = snapshot(), toMoment = (evById(sel) || evs[0]).end != null;
+		evs.forEach((ev) => { if (toMoment) { delete ev.end; delete ev.os; delete ev.oe; delete ev.life; } else if (ev.end == null) { ev.end = yearLater(ev.t); delete ev.circa; ensureRange(ev); } });
 		commit(before);
 	}
 
@@ -2468,7 +2469,7 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 				void host.createNote((ev.title || 'Untitled').trim(), ev.text || '').then((link) => { if (!link) return; act(() => { ev.file = link; })(); toast(`Created ${link}.md`); });
 			});
 			on('link', () => { closePop(); host.pickNote((link) => act(() => { ev.file = link; })()); });
-			on('span', () => { closePop(); act(() => { if (span) { delete ev.end; delete ev.os; delete ev.oe; delete ev.life; } else { ev.end = yearLater(ev.t); ensureRange(ev); } })(); });
+			on('span', () => { closePop(); act(() => { if (span) { delete ev.end; delete ev.os; delete ev.oe; delete ev.life; } else { ev.end = yearLater(ev.t); delete ev.circa; ensureRange(ev); } })(); });
 			on('os', () => { closePop(); act(() => { if (ev.os) delete ev.os; else ev.os = true; })(); });
 			on('oe', () => { closePop(); act(() => { if (ev.oe) delete ev.oe; else ev.oe = true; })(); });
 			on('flip', () => { closePop(); act(() => { ev.side = ev.side === 'a' ? 'b' : 'a'; })(); });

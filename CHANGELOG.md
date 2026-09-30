@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.7.16 (beta)
+
+- S turns every selected card into a span (or back), not just one.
+- A moment marked approximate no longer keeps a hidden “circa” after becoming a span.
+
 ## 0.7.15 (beta)
 
 - “Add a span here” and “New span” are undone in one step with their name, like new events.
