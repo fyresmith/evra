@@ -2714,6 +2714,9 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 		setDoc(d: EvraDoc) {
 			if (JSON.stringify(d) === snapshot()) return;
 			const first = !started;
+			// the file changed under us: a drag or an open menu would go on editing events that are gone
+			if (drag && drag.type !== 'pan') drag = null;
+			popOnClose = null; closePop();
 			S = d; E.reset(); docEpoch++;
 			if (sel && !evById(sel)) sel = null;
 			if (editing && !evById(editing)) { editing = null; editEl = null; }
