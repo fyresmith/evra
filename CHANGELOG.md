@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.8.12 (beta)
+
+- At phone width in any direction, the minimap and now tag sit below the breadcrumb and era labels stay clickable.
+
 ## 0.8.11 (beta)
 
 - Era labels stack without overlapping, in time order, in every direction.

@@ -618,6 +618,7 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 		if (G.L < 20 || G.C < 20) return;
 		const nw = G.vert && G.C < NARROW;
 		if (nw !== narrow) { narrow = nw; layoutDirty = true; root.toggleClass('narrow', narrow); }
+		root.toggleClass('thin', G.W < NARROW);
 		if (!started) start();
 		if (lastL && lastL !== G.L) { const c = V.v0 + lastL / 2 / V.scale; V.v0 = c - G.L / 2 / V.scale; }
 		lastL = G.L; clampView();
@@ -1117,7 +1118,7 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 		if (el.hidden) return;
 		el.textContent = 'Now · ' + fmt(S.now);
 		if (G.vert) el.setCssStyles({ top: rd(F.nowS) + 'px', left: '', right: '16px', transform: 'translateY(-50%)' });
-		else el.setCssStyles({ left: rd(F.nowS) + 'px', top: '46px', right: '', transform: 'translateX(-50%)' });
+		else el.setCssStyles({ left: rd(F.nowS) + 'px', top: G.W < NARROW ? '64px' : '46px', right: '', transform: 'translateX(-50%)' }); // below the minimap, which moves down on a phone
 	}
 	function renderOverlay(dep: Record<string, number>, R0: number, R1: number) {
 		renderNow(); renderMinimap(); renderRuler(); renderEraLabels(); renderBundles(); renderFilterPill();

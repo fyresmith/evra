@@ -2037,18 +2037,20 @@
 @media (max-width:760px) {
 	.evra-root.evra-view .hint { display:none }
 }
-/* phone width (the timeline sets .narrow): cards go above the era labels that share their side, and the breadcrumb keeps to one line */
-.evra-root.evra-view.narrow .cards {
-	z-index:1
+/* phone width (the timeline sets .narrow on a vertical timeline, .thin on any): era labels keep short so they cover less of the
+   cards beside them, the breadcrumb keeps to one line, and a horizontal timeline's minimap moves below the breadcrumb */
+.evra-root.evra-view.narrow .eralabels .el {
+	max-width:calc(110 * var(--evra-px))
 }
-.evra-root.evra-view.narrow .eralabels {
-	z-index:0
+.evra-root.evra-view.thin .minimap.mh {
+	top:46px;
+	left:16px
 }
-.evra-root.evra-view.narrow .crumb {
+.evra-root.evra-view.thin .crumb {
 	flex-wrap:nowrap;
 	overflow:hidden
 }
-.evra-root.evra-view.narrow .crumb button {
+.evra-root.evra-view.thin .crumb button {
 	min-width:0;
 	overflow:hidden;
 	text-overflow:ellipsis
