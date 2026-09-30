@@ -538,9 +538,13 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 	const sideOf = (e: EvraEvent): Side => (narrow ? 'b' : e.side);
 	/** Where the line sits across the view (before scrolling across), and the room kept free on the far side. */
 	function crossHome(): [number, number] {
-		if (!narrow) return [G.C / 2, 16];
-		const dep = eraDepths(), maxDep = Math.max(0, ...S.eras.map((e) => dep[e.id]));
-		return [RULER + (maxDep ? maxDep * 7 + 4 : 0) + 10, 62];
+		if (!narrow && G.vert) return [G.C / 2, 16];
+		const dep = eraDepths(), maxDep = Math.max(0, ...S.eras.map((e) => dep[e.id])), railW = maxDep ? maxDep * 7 + 4 : 0;
+		if (narrow) return [RULER + railW + 10, 62];
+		// across a horizontal timeline, the ruler, era rail and a row of era labels take a band along the bottom and the breadcrumb
+		// the top: the line sits midway between, so cards below it start clear of the ruler, and can scroll clear of the band
+		const band = 70 + G.inb + railW;
+		return [40 + (G.C - 40 - band) / 2, band];
 	}
 	const innerEdge = (it: Item) => LY.gut[it.side] + (it.cOff || 0);
 	const crossOf = (it: Item) => (G.vert ? LY.cross[it.side] : it.cr);

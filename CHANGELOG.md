@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.8.14 (beta)
+
+- Left-to-right and right-to-left timelines centre the line in the room above the ruler, so cards below it no longer cover the ruler.
+
 ## 0.8.13 (beta)
 
 - Settings tabs wrap on narrow screens instead of hiding off the edge.
