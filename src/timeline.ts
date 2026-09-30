@@ -1892,7 +1892,7 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 			${SYNC_FIELDS.map(([k, label]) => `<div class="syrow"><input type="checkbox" data-syf="${k}" ${sy.fields[k].on ? 'checked' : ''} aria-label="Sync ${esc(label)}"><span>${esc(label)}</span><input type="text" data-syk="${k}" value="${esc(sy.fields[k].key)}" spellcheck="false" aria-label="Property name for ${esc(label)}"></div>`).join('')}
 			${sample ? `<div class="fld"><span>How “${esc(titleOf(sample))}” will start</span><pre class="fmprev">${esc(shown ? `---\n${shown}\n---` : 'No properties selected')}</pre></div>` : '<p class="note">Link a note to a card to see a preview.</p>'}</section>
 			<section><h4>Create cards from notes</h4><p class="note">Finds notes that aren’t on the timeline yet but have a year (and optionally month and day) in their properties, or a date like “14 Frost 412”.</p>
-			<div class="cfn">${cands.length ? `${cands.slice(0, 200).map((x) => `<label class="chk"><input type="checkbox" data-cfn="${esc(x.link)}" checked> ${esc(x.title)} <small class="cfn-date">${esc(fmt(x.t))}</small></label>`).join('')}<div class="rowx"><button class="btn" data-k="cfnGo">Create ${Math.min(200, cands.length)} card${cands.length === 1 ? '' : 's'}</button></div>` : '<p class="note">No dated notes are waiting.</p>'}</div></section>
+			<div class="cfn">${cands.length ? `${cands.slice(0, 200).map((x) => `<label class="chk"><input type="checkbox" data-cfn="${esc(x.link)}" ${x.tick ? 'checked' : ''}> ${esc(x.title)} <small class="cfn-date">${esc(fmt(x.t))}</small></label>`).join('')}<div class="rowx"><button class="btn" data-k="cfnGo">Create ${Math.min(200, cands.length)} card${cands.length === 1 ? '' : 's'}</button></div>` : '<p class="note">No dated notes are waiting.</p>'}</div></section>
 			<section><h4>Clean up</h4><div class="rowx"><button class="btn" data-k="syStrip">Remove timeline properties from linked notes</button></div><p class="note">Turning sync off leaves notes as they are. Use this to take the properties back out.</p></section>`;
 		} else {
 			h = `<section><h4>Size</h4><label class="fld"><span>Card width <output class="cwv">${S.cardWidth || 240}px</output></span><input type="range" min="160" max="360" step="10" data-k="cw" value="${S.cardWidth || 240}"></label>
@@ -2310,7 +2310,10 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 	/* ---------- creating cards from notes ---------- */
 	function candidates() {
 		const linked = new Set(S.events.map((e) => e.file).filter(Boolean));
-		return host.candidateNotes(linked).map((x) => ({ link: x.link, title: x.title, t: noteDateOf(x.props, S, E) })).filter((x) => x.t != null).sort((a, b) => a.t - b.t);
+		// notes carrying timeline properties are ticked at first; ones with just a generic year or date (books, films…) only when there are few
+		const keys = new Set(['timeline', ...Object.values(S.opts.sync.fields).map((f) => f.key.toLowerCase())].filter((k) => k.startsWith('timeline')));
+		const list = host.candidateNotes(linked).map((x) => ({ link: x.link, title: x.title, t: noteDateOf(x.props, S, E), strong: Object.keys(x.props).some((k) => keys.has(k.toLowerCase())) })).filter((x) => x.t != null).sort((a, b) => a.t - b.t);
+		return list.map((x) => ({ ...x, tick: x.strong || list.length <= 12 }));
 	}
 	function createFromNotes(list: { link: string; t: number }[]) {
 		if (!list.length) return;
@@ -2431,7 +2434,7 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 			const on = (m: string, fn: () => void) => { const b = q1(p, `[data-m=${m}]`); if (b) b.onclick = fn; };
 			on('edit', () => { closePop(); startEdit(ev.id); });
 			on('open', () => { closePop(); host.openNote(ev.file); });
-			on('unlink', () => { closePop(); act(() => { ev.title = host.noteTitle(ev.file); ev.text = plainOf(noteExcerpt(noteSrc(ev))); ev.file = null; })(); });
+			on('unlink', () => { closePop(); act(() => { ev.title = host.noteTitle(ev.file); const src = noteSrc(ev); if (src) ev.text = plainOf(noteExcerpt(src)); ev.file = null; })(); }); // a missing note leaves the card's own text as it was
 			on('convert', () => {
 				closePop();
 				void host.createNote((ev.title || 'Untitled').trim(), ev.text || '').then((link) => { if (!link) return; act(() => { ev.file = link; })(); toast(`Created ${link}.md`); });

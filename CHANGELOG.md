@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.7.3 (beta)
+
+- Create cards from notes ticks notes with timeline properties at first; notes with just a generic year or date (books, films…) are listed unticked unless there are only a few.
+- Unlinking a card whose note is missing keeps the card's own text instead of emptying it.
+
 ## 0.7.2 (beta)
 
 - Fixed: moving a linked note while another note with the same name existed re-pointed the card (in an open timeline) at the other note.
