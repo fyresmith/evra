@@ -160,4 +160,14 @@ eq(normDoc({ cardWidth: 300 }).cardWidth, 300, 'a width in range is kept');
 const sample = idem(sampleDoc(), 'the sample world');
 ok(sample.events.length === 18 && sample.eras.length === 10 && sample.range.join() === '0,80', 'the sample world loads whole');
 
+// repeated ids: each card and era gets its own; references keep meaning the first
+{
+	const d = idem({ events: [{ id: 'x', t: 1, title: 'A' }, { id: 'x', t: 2, title: 'B' }, { id: 5, t: 3 }, { id: '5', t: 4 }], eras: [
+		{ id: 'g', name: 'One', start: 0, end: 10 }, { id: 'g', name: 'Two', start: 10, end: 20 }, { id: 'k', name: 'Kid', start: 2, end: 5, parent: 'g' }] }, 'repeated ids');
+	eq(new Set(d.events.map((e) => e.id)).size, 4, 'event ids made unique');
+	ok(d.events[0].id === 'x' && d.events[2].id === '5', 'the first keeps its id');
+	eq(new Set(d.eras.map((e) => e.id)).size, 3, 'era ids made unique');
+	eq(d.eras.find((e) => e.name === 'Kid').parent, d.eras.find((e) => e.name === 'One').id, 'a child stays with the first era of that id');
+}
+
 done('normalize');

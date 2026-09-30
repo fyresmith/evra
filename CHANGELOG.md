@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.7.34 (beta)
+
+- A file with repeated card or era ids opens with every card shown; deleting one no longer deletes its twin.
+
 ## 0.7.33 (beta)
 
 - Reordering, removing or shrinking months keeps eras inside their parents, in order and not empty.

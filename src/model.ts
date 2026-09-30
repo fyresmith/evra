@@ -42,6 +42,8 @@ const isObj = (v: unknown): v is Loose => !!v && typeof v === 'object' && !Array
 const num = (v: unknown, dflt: number, lo: number, hi: number): number => { const n = int(v, dflt); return Number.isFinite(n) ? clamp(n, lo, hi) : dflt; };
 /** An id from a string or number, or a new one. */
 const idOf = (v: unknown): string => (typeof v === 'string' && v ? v : typeof v === 'number' && Number.isFinite(v) ? String(v) : uid());
+/** Ids, each one unique: a repeat (5 and "5" count as the same) gets a fresh id; references to it keep meaning the first. */
+const uniqueIds = () => { const seen = new Set<string>(); return (v: unknown): string => { let id = idOf(v); while (seen.has(id)) id = uid(); seen.add(id); return id; }; };
 const text = (v: unknown, dflt: string): string => (typeof v === 'string' ? v : dflt);
 const bool = (v: unknown, dflt: boolean): boolean => (typeof v === 'boolean' ? v : dflt);
 const HEX = /^#[0-9a-fA-F]{6}$/;
@@ -151,9 +153,10 @@ export function normDoc(raw: unknown, fallbackName = 'Untitled'): EvraDoc {
 	d.name = typeof d.name === 'string' ? d.name : fallbackName;
 	if (!['ttb', 'btt', 'ltr', 'rtl'].includes(d.orientation)) d.orientation = 'ttb';
 	d.cardWidth = clamp(int(d.cardWidth, 240) || 240, 160, 360); // the card-width slider's range
+	const eraId = uniqueIds(), evId = uniqueIds();
 	d.eras = (Array.isArray(d.eras) ? d.eras : []).filter((e) => isObj(e) && okDay(e.start) && okDay(e.end))
 		.map((e): Era => {
-			const x: Era = { ...e, id: idOf(e.id), parent: typeof e.parent === 'string' || typeof e.parent === 'number' ? String(e.parent) : null, name: str(e.name) || (typeof e.name === 'string' ? '' : 'Untitled era'), color: colorOf(e.color) };
+			const x: Era = { ...e, id: eraId(e.id), parent: typeof e.parent === 'string' || typeof e.parent === 'number' ? String(e.parent) : null, name: str(e.name) || (typeof e.name === 'string' ? '' : 'Untitled era'), color: colorOf(e.color) };
 			if (x.end < x.start) [x.start, x.end] = [x.end, x.start];
 			if ('abbr' in x && typeof x.abbr !== 'string') delete x.abbr;
 			return x;
@@ -161,7 +164,7 @@ export function normDoc(raw: unknown, fallbackName = 'Untitled'): EvraDoc {
 		.filter((e) => e.end > e.start);
 	fixEraParents(d.eras);
 	d.events = (Array.isArray(d.events) ? d.events : []).filter((e) => isObj(e) && okDay(e.t))
-		.map((e): EvraEvent => ({ ...e, id: idOf(e.id), side: e.side === 'a' ? 'a' : 'b', title: str(e.title), text: str(e.text), color: colorOf(e.color), file: typeof e.file === 'string' ? e.file : null }));
+		.map((e): EvraEvent => ({ ...e, id: evId(e.id), side: e.side === 'a' ? 'a' : 'b', title: str(e.title), text: str(e.text), color: colorOf(e.color), file: typeof e.file === 'string' ? e.file : null }));
 	d.events.forEach((e) => {
 		if ('end' in e && !(okDay(e.end) && e.end > e.t)) delete e.end; // a span that ends where it starts, or before, is a moment
 		for (const k of ['os', 'oe', 'life'] as const) if (k in e && typeof e[k] !== 'boolean') delete e[k];
