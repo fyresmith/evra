@@ -2032,6 +2032,13 @@
 }
 
 /* Parts that only exist in the plugin */
+/* a card whose linked note doesn't exist (deleted, or not created yet) */
+.evra-root.evra-view .evra-card.missing {
+	border-style: dashed;
+}
+.evra-root.evra-view .evra-card.missing .tt {
+	color: var(--evra-muted);
+}
 .evra-root.evra-view .sheet-body:focus {
 	outline: none;
 }

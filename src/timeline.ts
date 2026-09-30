@@ -913,7 +913,7 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 				: [lod, ev.title, ev.text, ev.color, ev.file, ev.t, ev.end, ev.os, ev.oe, ev.icon, ev.circa, ev.life, (ev.tags || []).join(','), (ev.people || []).join(','),
 					ev.rel ? String(ev.rel.offset) + ev.rel.to : '', agesOf(ev).map((a) => a.name + a.age).join(','), calSig, ev.file ? host.noteStamp(ev.file) : ''].join('|');
 			if (sigs.get(el) !== sig && editing !== id) { setHTML(el, it.group ? groupHTML(it) : cardHTML(ev)); sigs.set(el, sig); }
-			el.className = 'evra-card' + dimClass(id) + (it.group ? ' group' : '') + (lod === 'compact' ? ' compact' : '') + (ev.color ? ' tint' : '') + (isSel(id) ? ' sel' : '')
+			el.className = 'evra-card' + dimClass(id) + (it.group ? ' group' : '') + (lod === 'compact' ? ' compact' : '') + (ev.color ? ' tint' : '') + (!it.group && ev.file && !host.noteExists(ev.file) ? ' missing' : '') + (isSel(id) ? ' sel' : '')
 				+ (editing === id ? ' editing' : '') + (fresh.has(id) ? ' enter' : '') + (settling.has(id) ? ' settle' : '') + (dragId === id ? ' dragging' : '');
 			const bx = box(it.pos, it.len);
 			if (dragId === id) { place(slotEl, bx); slotEl.hidden = false; bx[0] = drag.free.x; bx[1] = drag.free.y; }

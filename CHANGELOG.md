@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.7.2 (beta)
+
+- Fixed: moving a linked note while another note with the same name existed re-pointed the card (in an open timeline) at the other note.
+- Links written as [[Note#Heading]] or [[Note|alias]] now find their note.
+- A card whose note doesn't exist (deleted, or not created yet) has a dashed border and a muted title.
+
 ## 0.7.1 (beta)
 
 - Undo history is capped by size as well as steps (about 25 MB, always keeping the last 20 steps), so very large timelines don't eat memory.

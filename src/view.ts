@@ -153,7 +153,7 @@ export class EvraView extends TextFileView {
 	private resolve(link: string): TFile | null {
 		let f = this.resolved.get(link);
 		if (f === undefined) {
-			f = this.app.metadataCache.getFirstLinkpathDest(link, this.file ? this.file.path : '');
+			f = this.app.metadataCache.getFirstLinkpathDest(link.split('|')[0].split('#')[0], this.file ? this.file.path : ''); // [[Note#Heading|alias]] is still Note
 			this.resolved.set(link, f);
 		}
 		return f;
@@ -182,7 +182,7 @@ export class EvraView extends TextFileView {
 			saveViewState: () => app.workspace.requestSaveLayout(),
 			fileName: () => (this.file ? this.file.basename : 'Timeline'),
 			noteExists: (link) => !!this.resolve(link),
-			noteTitle: (link) => { const f = this.resolve(link); return f ? f.basename : link.split('/').pop().split('|')[0]; },
+			noteTitle: (link) => { const f = this.resolve(link); return f ? f.basename : link.split('|')[0].split('#')[0].split('/').pop(); },
 			noteText: (link) => { const f = this.resolve(link); return f ? plugin.notes.text(f) : null; },
 			noteStamp: (link) => { const f = this.resolve(link); return f ? plugin.notes.stamp(f) : -1; },
 			noteProps: (link) => { const f = this.resolve(link); return f ? fmOf(f) || {} : null; },
@@ -309,6 +309,7 @@ export class EvraView extends TextFileView {
 
 	/** A note was renamed or moved: point cards that linked to it at its new name. Returns true when something changed. */
 	noteRenamed(file: TFile, oldPath: string): boolean {
+		const before = new Map(this.resolved); // where each link pointed before the move (the TFile object is the same one, renamed)
 		this.resolved.clear();
 		if (!this.timeline) return false;
 		const doc = this.timeline.getDoc();
@@ -317,8 +318,9 @@ export class EvraView extends TextFileView {
 		doc.events.forEach((e) => {
 			if (!e.file || !linkMatchesPath(e.file, oldPath)) return;
 			// the link named the old path; keep it pointing at this note unless it now names a different one
-			const now = this.resolve(e.file);
-			if ((!now || now === file) && e.file !== link) { old.add(e.file); e.file = link; changed = true; }
+			const now = this.resolve(e.file), was = before.get(e.file);
+			// it pointed at this note before (even if a same-named note now answers to the old link), or it no longer points anywhere else
+			if ((was === file || !now || now === file) && e.file !== link) { old.add(e.file); e.file = link; changed = true; }
 		});
 		if (old.size) this.timeline.relinkHistory([...old], link);
 		if (doc.opts.sync.notes) doc.opts.sync.notes = doc.opts.sync.notes.map((p) => (p === oldPath ? file.path : p));
