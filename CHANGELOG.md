@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.7.12 (beta)
+
+- Delete, undo and other keys pressed in the middle of dragging a card are ignored instead of throwing errors or undoing the wrong step.
+
 ## 0.7.11 (beta)
 
 - After opening another timeline in the same tab, keys no longer reach the old one (which could add, delete or undo invisibly).

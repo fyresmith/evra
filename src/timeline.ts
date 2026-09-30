@@ -1472,6 +1472,7 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 		}
 		if (drag.type === 'card') {
 			const ev = evById(drag.id), o = drag.orig, nt = snap(o.t + dt, fine);
+			if (!ev) return;
 			ev.t = nt;
 			if (o.end != null) ev.end = nt + (o.end - o.t);
 			if (drag.together) { // the whole selection moves as one, and pins within it keep their gaps
@@ -2646,6 +2647,7 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 		const done = () => { e.preventDefault(); e.stopPropagation(); };
 		if (mod && k === 'k' && !e.shiftKey && !e.altKey) { done(); openPalette(''); return; }
 		if (typing) return;
+		if (drag && drag.type !== 'pan' && drag.moved && !/^(Alt|Shift|Escape)$/.test(e.key)) { done(); return; } // keys mid-drag would edit what the drag is about to commit
 		if (mod && k === 'z') { done(); if (e.shiftKey) redoF(); else undo(); return; }
 		if (mod && k === 'y') { done(); redoF(); return; }
 		if (mod && k === 'a') { done(); selectAll(); return; }
