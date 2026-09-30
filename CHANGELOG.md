@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.7.23 (beta)
+
+- Narrowing the range keeps it at the end of the content, like Fit range, instead of adding a year.
+
 ## 0.7.22 (beta)
 
 - The card width slider opens at the timeline's width instead of 160, so the first nudge no longer jumps.

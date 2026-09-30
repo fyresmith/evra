@@ -2071,7 +2071,7 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 			if (far(a) || far(b)) { toast('That year is too far out.'); renderSheet(); return; }
 			if (!(b > a)) { toast('The range has to end after it starts.'); renderSheet(); return; }
 			const cb = contentBounds();
-			if (cb && (yearStartT(a) > cb[0] || yearStartT(b) < cb[1])) { a = Math.min(a, yearOf(cb[0])); b = Math.max(b, yearOf(cb[1]) + 1); toast('Kept the range wide enough for existing events and eras.'); }
+			if (cb && (yearStartT(a) > cb[0] || yearStartT(b) < cb[1])) { a = Math.min(a, yearOf(cb[0])); b = Math.max(b, yearStartT(yearOf(cb[1])) === cb[1] ? yearOf(cb[1]) : yearOf(cb[1]) + 1); toast('Kept the range wide enough for existing events and eras.'); }
 			step(() => { S.range = [a, b]; }); renderSheet();
 		};
 		if (k('r0')) { k('r0').onchange = rangeChange; k('r1').onchange = rangeChange; }
