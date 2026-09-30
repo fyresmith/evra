@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.0 (beta)
+
+- A new README: a guided tour with screenshots and short demos of every feature, all captured in Obsidian.
+
 ## 0.4.10 (beta)
 
 - Fixed: renaming or moving a linked note updated the card's title on screen but not the saved link, so the link broke after reopening the timeline. Links now follow the note in open and closed timelines.
