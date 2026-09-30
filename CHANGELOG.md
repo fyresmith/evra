@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.7.38 (beta)
+
+- Note changes find their card through a lookup instead of scanning every card (about 800 ms to 4 ms for a vault-wide change on a 2,000-card world).
+
 ## 0.7.37 (beta)
 
 - Two panes showing the same timeline share each change immediately, so neither loses unsaved edits.

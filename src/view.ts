@@ -48,7 +48,7 @@ export class EvraView extends TextFileView {
 
 	setViewData(data: string, clear: boolean): void {
 		// links resolve relative to the timeline file, so a different file starts with an empty cache
-		if (clear || this.resolvedFor !== (this.file ? this.file.path : null)) this.resolved.clear();
+		if (clear || this.resolvedFor !== (this.file ? this.file.path : null)) this.forget();
 		this.resolvedFor = this.file ? this.file.path : null;
 		let doc: EvraDoc;
 		const name = this.file ? this.file.basename : 'Untitled';
@@ -154,7 +154,7 @@ export class EvraView extends TextFileView {
 		await super.onUnloadFile(file);
 		this.timeline?.destroy();
 		this.timeline = null;
-		this.resolved.clear();
+		this.forget();
 		this.contentEl.empty();
 	}
 
@@ -191,13 +191,25 @@ export class EvraView extends TextFileView {
 		}
 		return f;
 	}
-	/** Does this timeline show the note? */
-	linksTo(file: TFile): boolean {
-		return !!this.timeline && this.timeline.getDoc().events.some((e) => e.file && this.resolve(e.file) === file);
+	private forget() { this.resolved.clear(); this.firstCard = null; }
+	// The first card linked to each note, so a burst of note changes (thousands, as a vault syncs) doesn't search every card
+	// for each. Rebuilt after any edit (links may have changed) or when links resolve anew.
+	private firstCard: Map<TFile, EvraEvent> | null = null;
+	private firstCardFor: EvraEvent[] | null = null;
+	private cardFor(file: TFile): EvraEvent | undefined {
+		if (!this.timeline) return undefined;
+		const evs = this.timeline.getDoc().events;
+		if (!this.firstCard || this.firstCardFor !== evs) {
+			this.firstCard = new Map(); this.firstCardFor = evs;
+			for (const e of evs) { const f = e.file && this.resolve(e.file); if (f && !this.firstCard.has(f)) this.firstCard.set(f, e); }
+		}
+		return this.firstCard.get(file);
 	}
+	/** Does this timeline show the note? */
+	linksTo(file: TFile): boolean { return !!this.cardFor(file); }
 	/** Files were created, renamed or deleted: links may point somewhere else now. */
 	linksChanged() {
-		this.resolved.clear();
+		this.forget();
 		this.timeline?.notesChanged();
 	}
 	private linkFor(f: TFile): string {
@@ -211,7 +223,7 @@ export class EvraView extends TextFileView {
 		const app = this.app, plugin = this.plugin;
 		const fmOf = (f: TFile) => app.metadataCache.getFileCache(f)?.frontmatter as Record<string, unknown> | undefined;
 		return {
-			requestSave: () => { this.requestSave(); this.updateUndo(); this.shareDoc(); },
+			requestSave: () => { this.firstCard = null; this.requestSave(); this.updateUndo(); this.shareDoc(); },
 			saveViewState: () => app.workspace.requestSaveLayout(),
 			fileName: () => (this.file ? this.file.basename : 'Timeline'),
 			noteExists: (link) => !!this.resolve(link),
@@ -351,9 +363,7 @@ export class EvraView extends TextFileView {
 
 	/** A linked note changed: its text may show on a card, and its properties may move one. */
 	noteChanged(file: TFile) {
-		if (!this.timeline) return;
-		const doc = this.timeline.getDoc();
-		const ev = doc.events.find((e) => e.file && this.resolve(e.file) === file);
+		const ev = this.cardFor(file);
 		if (!ev) return;
 		// Evra's own property writes come back as metadata changes a moment later, by which time the card may have
 		// moved again: those must not move it back
@@ -371,7 +381,7 @@ export class EvraView extends TextFileView {
 	/** A note was renamed or moved: point cards that linked to it at its new name. Returns true when something changed. */
 	noteRenamed(file: TFile, oldPath: string): boolean {
 		const before = this.renameBefore ??= new Map(this.resolved); // the TFile object is the same one, renamed
-		this.resolved.clear();
+		this.forget();
 		if (!this.timeline) return false;
 		const doc = this.timeline.getDoc();
 		let changed = false;

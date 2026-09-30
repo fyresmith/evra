@@ -1,6 +1,6 @@
 {
   "name": "evra",
-  "version": "0.7.37",
+  "version": "0.7.38",
   "description": "Worldbuilding timelines for Obsidian: custom calendars, nested eras, span threads and linked notes.",
   "main": "main.js",
   "type": "module",
