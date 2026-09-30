@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.7.14 (beta)
+
+- Titles and descriptions cut at their length limit no longer end in half an emoji.
+
 ## 0.7.13 (beta)
 
 - Ctrl/⌘ Z and Y undo and redo while a checkbox, slider or dropdown in a menu or the settings has focus.

@@ -1702,6 +1702,8 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 
 	/* ---------- actions ---------- */
 	let justAdded: { id: string; before: string } = null;
+	// cut to n UTF-16 units without splitting an emoji in half
+	const cut = (x: string, n: number) => (x.length <= n ? x : x.slice(0, /[\uD800-\uDBFF]/.test(x[n - 1]) ? n - 1 : n));
 	function addEvent(t: number, side: Side) {
 		const before = snapshot(), ev: EvraEvent = { id: uid(), t, side, title: 'New event', text: '', color: null, file: null };
 		fresh.add(ev.id); S.events.push(ev); ensureRange(ev); sel = ev.id; commit(before);
@@ -1758,7 +1760,7 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 		const cnt = q1(el, '.cnt'), count = () => {
 			let t = bd.innerText.replace(/\n$/, '');
 			if (t.length > DESC_MAX) {
-				t = t.slice(0, DESC_MAX); bd.innerText = t;
+				t = cut(t, DESC_MAX); bd.innerText = t;
 				const r2 = doc().createRange(), s2 = win().getSelection();
 				r2.selectNodeContents(bd); r2.collapse(false); s2.removeAllRanges(); s2.addRange(r2);
 			}
@@ -1778,8 +1780,8 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 		if (el && ev) {
 			if (save) {
 				const tt = q1(el, '.tt'), bd = q1(el, '.bd');
-				ev.title = (tt ? tt.innerText.replace(/\s+/g, ' ').trim().slice(0, 200) : '') || 'Untitled';
-				ev.text = bd ? bd.innerText.trim().slice(0, DESC_MAX) : '';
+				ev.title = (tt ? cut(tt.innerText.replace(/\s+/g, ' ').trim(), 200) : '') || 'Untitled';
+				ev.text = bd ? cut(bd.innerText.trim(), DESC_MAX) : '';
 				commit(editBefore.get(el));
 			}
 			sigs.delete(el); const fo = focusOut.get(el); if (fo) el.removeEventListener('focusout', fo); el.removeClass('editing');
