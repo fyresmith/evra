@@ -576,3 +576,17 @@ test('Ctrl/Cmd D while typing a title does not duplicate cards', async (p, h, t)
 	await p.dbl(c.x, c.y); await p.sleep(250); await p.key('d', 'ctrl'); await p.sleep(200); await p.key('Escape');
 	t.eq((await h.events()).length, n, 'no duplicate');
 });
+test('undo after renaming a linked note keeps the new link', async (p, h, t) => {
+	await h.open();
+	const c = await h.card('Siege of the Keep begins', '.dt'); await p.drag(c.x, c.y, c.x, c.y + 60);
+	await p.ev(`app.fileManager.renameFile(app.vault.getAbstractFileByPath('Treaty of Sallow.md'), 'Treaty of the Sallow.md').then(() => 1)`); await p.sleep(900);
+	await h.focusStage(); await p.key('z', 'ctrl'); await p.sleep(200);
+	t.ok((await h.events()).some((e) => e.file === 'Treaty of the Sallow'), 'still the new link after undo');
+});
+test('Ctrl/Cmd D leaves the copy buffer alone', async (p, h, t) => {
+	await h.open();
+	const a = await h.card('Treaty of Sallow', '.dt'); await p.click(a.x, a.y); await p.key('c', 'ctrl');
+	const b = await h.card('Siege of the Keep begins', '.dt'); await p.click(b.x, b.y); await p.key('d', 'ctrl'); await p.sleep(200);
+	const s = await h.stage(); await p.move(s.l + 200, s.t + 300); await p.key('v', 'ctrl'); await p.sleep(200);
+	t.eq((await h.events()).filter((e) => e.file === 'Treaty of Sallow').length, 2, 'paste still pastes what was copied');
+});

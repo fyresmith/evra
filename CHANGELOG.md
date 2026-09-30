@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.6.6 (beta)
+
+- Fixed: undoing after renaming a linked note brought back the old, broken link.
+- Ctrl/⌘ D duplicates without touching the clipboard or what you last copied.
+- Dragging the minimap or the side scrollbar can no longer leave listeners behind if the drag is interrupted (touch cancel).
+
 ## 0.6.5 (beta)
 
 - Settings panel fixes:

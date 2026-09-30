@@ -302,12 +302,14 @@ export class EvraView extends TextFileView {
 		if (!this.timeline) return false;
 		const doc = this.timeline.getDoc();
 		let changed = false;
+		const link = this.linkFor(file), old = new Set<string>();
 		doc.events.forEach((e) => {
 			if (!e.file || !linkMatchesPath(e.file, oldPath)) return;
 			// the link named the old path; keep it pointing at this note unless it now names a different one
-			const now = this.resolve(e.file), link = this.linkFor(file);
-			if ((!now || now === file) && e.file !== link) { e.file = link; changed = true; }
+			const now = this.resolve(e.file);
+			if ((!now || now === file) && e.file !== link) { old.add(e.file); e.file = link; changed = true; }
 		});
+		if (old.size) this.timeline.relinkHistory([...old], link);
 		if (doc.opts.sync.notes) doc.opts.sync.notes = doc.opts.sync.notes.map((p) => (p === oldPath ? file.path : p));
 		if (changed) { this.requestSave(); this.timeline.notesChanged(); }
 		return changed;

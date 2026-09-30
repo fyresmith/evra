@@ -29,6 +29,8 @@ export interface Timeline {
 	focus(): void;
 	/** Save the card being edited, if any. */
 	flush(): void;
+	/** A note was renamed: point undo and redo at its new link too, so undoing never brings back a dead link. */
+	relinkHistory(from: string[], to: string): void;
 	destroy(): void;
 }
 
@@ -1139,7 +1141,16 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 		setSel(ids); commit(before);
 		toast(ids.length === 1 ? 'Pasted 1 card' : `Pasted ${ids.length} cards`, true);
 	}
-	function duplicateSel() { const ids = selIds(); if (!ids.length) return; copySel(); pasteClip(stepT(Math.min(...ids.map((i) => evById(i).t)), 1)); }
+	function duplicateSel() { // copies within the timeline only: the clipboard and the copy buffer are left alone
+		const ids = selIds();
+		if (!ids.length) return;
+		const keep = clip;
+		clip = ids.map(evById).map((e) => ({ ...(JSON.parse(JSON.stringify(e)) as EvraEvent), t: e.t, end: e.end }));
+		const t0 = Math.min(...clip.map((e) => e.t));
+		clip = clip.map((e) => ({ ...e, t: e.t - t0, end: e.end != null ? e.end - t0 : undefined }));
+		pasteClip(stepT(t0, 1));
+		clip = keep;
+	}
 	function stepSel(dir: number) { // J / K: move the focus to the next or previous card in time
 		const list = [...S.events].sort((a, b) => a.t - b.t || a.id.localeCompare(b.id));
 		if (!list.length) return;
@@ -2255,8 +2266,8 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 			V.v0 = t - G.L / 2 / V.scale; repaint(); saveSoon();
 		};
 		go(e);
-		const mv = (ev: PointerEvent) => go(ev), up = () => { mm.removeEventListener('pointermove', mv); mm.removeEventListener('pointerup', up); };
-		mm.addEventListener('pointermove', mv); mm.addEventListener('pointerup', up);
+		const mv = (ev: PointerEvent) => go(ev), up = () => { mm.removeEventListener('pointermove', mv); ['pointerup', 'pointercancel', 'lostpointercapture'].forEach((t) => mm.removeEventListener(t, up)); };
+		mm.addEventListener('pointermove', mv); ['pointerup', 'pointercancel', 'lostpointercapture'].forEach((t) => mm.addEventListener(t, up));
 	});
 
 	/* ---------- saved views ---------- */
@@ -2558,8 +2569,8 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 		const tl = G.vert ? th.offsetWidth : th.offsetHeight, kk = (V.xmax - V.xmin) / Math.max(1, C - tl);
 		th.setPointerCapture(e.pointerId);
 		const mv = (m: PointerEvent) => { V.x = x0 + ((G.vert ? m.clientX : m.clientY) - start) * kk; repaint(); };
-		const up = () => { th.removeEventListener('pointermove', mv); th.removeEventListener('pointerup', up); saveSoon(); };
-		th.addEventListener('pointermove', mv); th.addEventListener('pointerup', up);
+		const up = () => { th.removeEventListener('pointermove', mv); ['pointerup', 'pointercancel', 'lostpointercapture'].forEach((t) => th.removeEventListener(t, up)); saveSoon(); };
+		th.addEventListener('pointermove', mv); ['pointerup', 'pointercancel', 'lostpointercapture'].forEach((t) => th.addEventListener(t, up));
 	});
 	function toast(msg: string, canUndo?: boolean) {
 		const t = $('toast');
@@ -2658,6 +2669,15 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 		cssChanged() { cssEpoch++; measureFont = ''; family = ''; serif = ''; measureCache.clear(); tagKey = ''; if (!sheet.hidden) renderSheet(); invalidate(); },
 		focus() { if (!root.contains(doc().activeElement)) stage.focus({ preventScroll: true }); },
 		flush() { if (editing) finishEdit(true); },
+		relinkHistory(from: string[], to: string) {
+			const fix = (json: string) => {
+				if (!from.some((f) => json.includes(JSON.stringify(f)))) return json;
+				const d = JSON.parse(json) as EvraDoc;
+				d.events.forEach((e) => { if (e.file && from.includes(e.file)) e.file = to; });
+				return JSON.stringify(d);
+			};
+			hist = hist.map(fix); redo = redo.map(fix);
+		},
 		destroy() {
 			destroyed = true;
 			if (editing) finishEdit(true);
