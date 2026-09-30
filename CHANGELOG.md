@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.8.30 (beta)
+
+- On narrow vertical timelines, era labels stand upright in their own column instead of covering the line and cards.
+
 ## 0.8.29 (beta)
 
 - The end-to-end runner closes every pane between tests, and the empty-clipboard test starts from a fresh plugin.

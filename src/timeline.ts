@@ -543,7 +543,8 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 	function crossHome(): [number, number] {
 		if (!narrow && G.vert) return [G.C / 2, 16];
 		const dep = eraDepths(), maxDep = Math.max(0, ...S.eras.map((e) => dep[e.id])), railW = maxDep ? maxDep * 7 + 4 : 0;
-		if (narrow) return [RULER + railW + 10, 62];
+		// era labels stand upright in a column beside the rail, and the line comes after them
+		if (narrow) return [RULER + railW + (S.eras.length ? 6 + eraLabelH({ id: '', name: '', s: 0, sub: true, lvl: 2 }) : 0) + 10, 62];
 		// across a horizontal timeline, the ruler, era rail and a row of era labels take a band along the bottom and the breadcrumb
 		// the top: the line sits midway between, so cards below it start clear of the ruler, and can scroll clear of the band
 		const band = 70 + G.inb + railW;
@@ -725,7 +726,7 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 		if (G.vert) { // labels run beside their era's start, away from it in time order: down the edge, or up it when time runs upward
 			const d = G.rev ? -1 : 1, list = G.rev ? [...F.eraLabels].sort((a, b) => b.s - a.s || a.lvl - b.lvl) : F.eraLabels;
 			let edge = -Infinity; // the far side of the last label placed, measured along the direction the labels stack
-			list.forEach((t) => { const near = d * t.s + 6; t.lead = Math.max(0, edge + 4 - near); edge = near + t.lead + eraLabelH(t); });
+			list.forEach((t) => { const near = d * t.s + 6; t.lead = Math.max(0, edge + 4 - near); edge = near + t.lead + labAlong(t); });
 		} else { // labels run along the bottom: a label that would overlap the one before it moves up a row
 			const spans = F.eraLabels.map((t) => { const w = eraLabelWidth(t); return { t, lo: G.rev ? t.s - 6 - w : t.s + 6, hi: G.rev ? t.s - 6 : t.s + 6 + w }; }).sort((a, b) => a.lo - b.lo);
 			const rows: number[] = [];
@@ -1000,14 +1001,16 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 	/* ---------- overlays: tags, era labels, rulers, bundles, now, breadcrumb ---------- */
 	// An era label's width, from font metrics (reading it from the page mid-frame would force a layout)
 	const eraWidths = new Map<string, number>();
-	/** A label's real height (it follows the text size), measured once per kind of label. */
+	/** How far a label reaches along the line: its height, or on a narrow timeline, where it stands upright, its length. */
+	const labAlong = (t: EraLabel) => (narrow ? eraLabelWidth(t) : eraLabelH(t));
+	/** A label's real thickness (its height lying down, its width standing up; it follows the text size), measured once per kind. */
 	const eraHeights = new Map<string, number>();
 	function eraLabelH(t: EraLabel): number {
 		const cls = 'el' + (t.sub ? ' sub' : '') + (t.lvl > 2 ? ' deep' : ''), k = cls + '|' + cssEpoch;
 		let hh = eraHeights.get(k);
 		if (hh == null) {
 			const probe = $('eraLabels').createEl('button', { cls: cls + ' evra-probe', text: 'Hg' });
-			hh = probe.offsetHeight || 20; probe.remove();
+			hh = Math.min(probe.offsetWidth, probe.offsetHeight) || 20; probe.remove();
 			if (eraHeights.size > 50) eraHeights.clear();
 			eraHeights.set(k, hh);
 		}
@@ -1069,7 +1072,7 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 			el.dataset.era = t.id;
 			if (el.textContent !== t.name) el.textContent = t.name;
 			const d = G.rev ? -1 : 1;
-			if (G.vert) el.setCssStyles({ left: RULER + 6 + (F.railW || 0) + 'px', top: rd(t.s + d * (6 + t.lead) - (G.rev ? eraLabelH(t) : 0)) + 'px', bottom: '', transform: '' });
+			if (G.vert) el.setCssStyles({ left: RULER + 6 + (F.railW || 0) + 'px', top: rd(t.s + d * (6 + t.lead) - (G.rev ? labAlong(t) : 0)) + 'px', bottom: '', transform: '' });
 			else el.setCssStyles({ left: rd(t.s + (G.rev ? -6 : 6)) + 'px', transform: G.rev ? 'translateX(-100%)' : '', top: '', bottom: 44 + G.inb + (F.railW || 0) + (t.row || 0) * 26 + 'px' });
 		});
 	}
