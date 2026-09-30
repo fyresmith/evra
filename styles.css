@@ -1453,6 +1453,9 @@
 	-webkit-box-orient:vertical;
 	overflow:hidden
 }
+.evra-root.evra-view .evra-card.nodesc:not(.editing) .bd {
+	display:none
+}
 .evra-root.evra-view .evra-card .bd .ph {
 	color:var(--evra-faint)
 }

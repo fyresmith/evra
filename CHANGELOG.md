@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.7.21 (beta)
+
+- Setting description lines to None hides descriptions instead of showing them in full over the date.
+
 ## 0.7.20 (beta)
 
 - Going to a date outside the range widens the range (one undo step) so the date is on screen.

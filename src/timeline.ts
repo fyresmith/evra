@@ -934,7 +934,7 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 			if (dragId === id) { place(slotEl, bx); slotEl.hidden = false; bx[0] = drag.free.x; bx[1] = drag.free.y; }
 			place(el, bx);
 			if (editing === id) el.setCssStyles({ height: '', minHeight: rd(bx[3]) + 'px' }); else el.setCssStyles({ minHeight: '' });
-			if (!it.group) el.style.setProperty('--lines', String(descLines(ev, G.vert ? cr : 220)));
+			if (!it.group) { const n = descLines(ev, G.vert ? cr : 220); el.style.setProperty('--lines', String(n)); el.toggleClass('nodesc', !n); } // a line clamp of 0 means no clamp at all
 			el.tabIndex = sel === id || (!sel && it === items[0]) ? 0 : -1; // one tab stop for the cards (the selected one); J and K move between them
 			el.setAttribute('aria-label', it.group ? `${it.members.length} events in ${yearStr(it.year)}` : `${titleOf(ev)}, ${ev.end != null ? fmtRange(ev) : fmt(ev.t)}`);
 			el.style.setProperty('--cc', col(ev.color));
@@ -1557,7 +1557,8 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 		el.dataset.id = id;
 		el.style.setProperty('--cc', col(ev.color));
 		setHTML(el, cardHTML(ev, 'full'));
-		el.style.setProperty('--lines', String(descLines(ev, G.vert ? Math.max(px(src, 'width'), S.cardWidth || 240) : 220)));
+		const nl = descLines(ev, G.vert ? Math.max(px(src, 'width'), S.cardWidth || 240) : 220);
+		el.style.setProperty('--lines', String(nl)); el.toggleClass('nodesc', !nl);
 		const x = px(src, 'left'), y = px(src, 'top'), w = px(src, 'width'), h = px(src, 'height');
 		let W: number, H: number, X: number, Y: number;
 		if (G.vert) { W = Math.max(w, S.cardWidth || 240); H = cardSize(ev, W); X = ev.side === 'a' ? x + w - W : x; Y = y + h / 2 - 18; }
