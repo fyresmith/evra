@@ -319,8 +319,9 @@ export class EvraView extends TextFileView {
 			if (!e.file || !linkMatchesPath(e.file, oldPath)) return;
 			// the link named the old path; keep it pointing at this note unless it now names a different one
 			const now = this.resolve(e.file), was = before.get(e.file);
-			// it pointed at this note before (even if a same-named note now answers to the old link), or it no longer points anywhere else
-			if ((was === file || !now || now === file) && e.file !== link) { old.add(e.file); e.file = link; changed = true; }
+			// it pointed at this note before (even if a same-named note now answers to the old link); a bare name never looked up is
+			// taken to mean the moved note; or it no longer points anywhere else
+			if ((was === file || (was === undefined && !e.file.includes('/')) || !now || now === file) && e.file !== link) { old.add(e.file); e.file = link; changed = true; }
 		});
 		if (old.size) this.timeline.relinkHistory([...old], link);
 		if (doc.opts.sync.notes) doc.opts.sync.notes = doc.opts.sync.notes.map((p) => (p === oldPath ? file.path : p));

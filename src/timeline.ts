@@ -2637,8 +2637,9 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 				e.preventDefault(); e.stopPropagation();
 				const all = qa(pop, 'button:not([disabled]), input, select, textarea'), i = all.indexOf(e.target as HTMLElement);
 				all[(i + (e.key === 'ArrowDown' ? 1 : all.length - 1)) % all.length]?.focus();
+				return;
 			}
-			return;
+			if (!(e.ctrlKey || e.metaKey)) return; // plain keys belong to the menu; Ctrl/Cmd shortcuts (undo, redo…) still work
 		}
 		const tg = e.target as HTMLElement, typing = tg.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(tg.tagName), mod = e.ctrlKey || e.metaKey, k = e.key.toLowerCase();
 		const done = () => { e.preventDefault(); e.stopPropagation(); };

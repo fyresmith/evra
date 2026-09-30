@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.7.9
+
+- Ctrl/Cmd shortcuts such as undo and redo work while a card menu is open, and close it.
+- Moving a note keeps its cards linked when another note has the same name.
+
 ## 0.7.8 (beta)
 
 - Card, era-label, tag and ruler text follows Obsidian's font size setting (it was fixed in pixels), and cards size themselves to match.
