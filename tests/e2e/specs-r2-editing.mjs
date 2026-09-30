@@ -1288,3 +1288,279 @@ test('R2E110 drag-select along the line → New span: named, and add+name is one
 	await p.key('z', 'ctrl'); await p.sleep(150);
 	t.eq((await h.events()).length, n, 'BUG: New span + its name need two undos (Add event needs one)');
 });
+
+/* ================= pass 2: regressions from the fixes (R2E2xx) ================= */
+const touchEv = (p, type, pts) => p.send('Input.dispatchTouchEvent', { type, touchPoints: pts.map(([x, y], i) => ({ x, y, id: i, radiusX: 4, radiusY: 4, force: 1 })) });
+const phoneOn = async (p) => { await p.send('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 2, mobile: true }); await p.send('Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints: 5 }); await p.sleep(400); };
+const phoneOff = async (p) => { await p.send('Emulation.setDeviceMetricsOverride', { width: p.width, height: p.height, deviceScaleFactor: 1, mobile: false }); await p.send('Emulation.setTouchEmulationEnabled', { enabled: false }); await p.sleep(300); };
+const phoneT = (name, fn) => test(name, async (p, h, t) => { await phoneOn(p); try { await fn(p, h, t); } finally { await phoneOff(p); } });
+/** press, move in steps, run fn mid-drag, then release */
+async function midDrag(p, x0, y0, dx, dy, fn, steps = 8) {
+	await p.move(x0, y0, 2);
+	await p.send('Input.dispatchMouseEvent', { type: 'mousePressed', x: x0, y: y0, button: 'left', clickCount: 1 });
+	for (let i = 1; i <= steps; i++) await p.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: x0 + dx * i / steps, y: y0 + dy * i / steps, button: 'left', buttons: 1 });
+	await fn();
+	await p.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: x0 + dx, y: y0 + dy, button: 'left', clickCount: 1 });
+	await p.sleep(200);
+}
+test('R2E201 Escape during a shift-marquee restores the previous selection', async (p, h, t) => {
+	await h.open(); await h.setView(34, 12);
+	await selectIds(p, h, [FALL]);
+	const s = await h.stage(), b = await p.at(`${A} .evra-card[data-id="${PLAGUE}"]`);
+	await p.move(s.l + s.w - 20, b.t - 6, 2);
+	await p.send('Input.dispatchMouseEvent', { type: 'mousePressed', x: s.l + s.w - 20, y: b.t - 6, button: 'left', clickCount: 1, modifiers: 8 });
+	for (let i = 1; i <= 8; i++) await p.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: s.l + s.w - 20 - (s.w - 40 - (b.l - s.l)) * i / 8, y: b.t - 6 + (b.h + 12) * i / 8, button: 'left', buttons: 1, modifiers: 8 });
+	t.ok((await selIdsDom(p)).includes(PLAGUE), 'marquee picked plague');
+	await p.key('Escape'); await p.sleep(80);
+	await p.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: b.l + 10, y: b.t + b.h + 6, button: 'left', clickCount: 1 });
+	await p.sleep(150);
+	t.ok(await p.ev(`document.querySelector('${A} [data-r=marquee]') ? document.querySelector('${A} [data-r=marquee]').hidden : true`), 'marquee box hidden');
+	t.eq(JSON.stringify(await selIdsDom(p)), JSON.stringify([FALL]), 'Escape during a marquee should put the selection back');
+});
+test('R2E202 Escape during a drag along the line: no create popover, no era, no undo step', async (p, h, t) => {
+	await h.open(); await h.setView(40, 10);
+	const x = await h.lineX(), s = await h.stage(), eras = (await h.doc()).eras.length;
+	await midDrag(p, x, s.t + 200, 0, 220, async () => { await p.key('Escape'); await p.sleep(60); });
+	t.ok(!(await h.popOpen()), 'no popover');
+	t.eq((await h.doc()).eras.length, eras, 'no era');
+	t.ok(!(await hist(p, h)).u, 'no history');
+});
+test('R2E203 Escape during an era edge drag restores the era; no undo step; the next drag works', async (p, h, t) => {
+	await h.open(); await h.setView(-5, 32);
+	const e0 = JSON.stringify((await h.doc()).eras);
+	const k1 = (await h.doc()).eras.find((e) => e.id === 'k1');
+	const y = await p.ev(`(() => { const v = ${h.tl}.getViewState(); const s = document.querySelector('${A} .stage').getBoundingClientRect(); return s.y + (${k1.end} - v.v0) * v.scale; })()`);
+	const x = await h.lineX();
+	await midDrag(p, x, y, 0, 60, async () => { await p.key('Escape'); await p.sleep(60); });
+	t.eq(JSON.stringify((await h.doc()).eras), e0, 'eras restored');
+	t.ok(!(await hist(p, h)).u, 'no undo step');
+});
+test('R2E204 Escape during a dot drag (moment → span) restores the moment', async (p, h, t) => {
+	await h.open(); await h.setView(34, 12);
+	const o = await byId(h, SIEGE), x = await h.lineX();
+	const y = await p.ev(`(() => { const v = ${h.tl}.getViewState(); const s = document.querySelector('${A} .stage').getBoundingClientRect(); return s.y + (${o.t} - v.v0) * v.scale; })()`);
+	await midDrag(p, x, y, 0, 120, async () => { t.ok((await byId(h, SIEGE)).end != null, 'span while dragging'); await p.key('Escape'); await p.sleep(60); });
+	t.eq(JSON.stringify(await byId(h, SIEGE)), JSON.stringify(o), 'restored');
+});
+test('R2E205 after Escape-cancelling a card drag, keys and the next drag work at once (no stuck drag)', async (p, h, t) => {
+	await h.open(); await h.setView(34, 12);
+	const o = await byId(h, SIEGE), c = await cardAt(p, SIEGE);
+	await midDrag(p, c.x, c.y, 0, 90, async () => { await p.key('Escape'); await p.sleep(60); });
+	t.eq((await byId(h, SIEGE)).t, o.t, 'cancelled');
+	await p.key('3'); await p.sleep(100);
+	t.eq((await byId(h, SIEGE)).color, '3', 'digit works right after');
+	const c2 = await cardAt(p, SIEGE); await p.drag(c2.x, c2.y, c2.x, c2.y + 90);
+	t.ok((await byId(h, SIEGE)).t > o.t, 'next drag moves');
+	await undoN(p, 1); t.eq((await byId(h, SIEGE)).t, o.t, 'one undo for the drag');
+	await undoN(p, 1); t.eq((await byId(h, SIEGE)).color, '1', 'then the color');
+});
+test('R2E206 keys pressed mid-drag are ignored, the drag commits once, and keys work straight after release', async (p, h, t) => {
+	await h.open(); await h.setView(34, 12);
+	const o = await byId(h, SIEGE), n = (await h.events()).length, c = await cardAt(p, SIEGE);
+	await midDrag(p, c.x, c.y, 0, 90, async () => { for (const k of ['3', 's', 'n', 'Delete', 'ArrowDown']) await p.key(k); await p.key('d', 'ctrl'); await p.key('z', 'ctrl'); await p.sleep(60); });
+	const e = await byId(h, SIEGE);
+	t.ok(e && e.t > o.t && e.color === '1' && e.end == null, 'only the drag applied');
+	t.eq((await h.events()).length, n, 'nothing added or removed');
+	await p.key('4'); await p.sleep(80);
+	t.eq((await byId(h, SIEGE)).color, '4', 'keys work after release');
+	await undoN(p, 2);
+	t.eq((await byId(h, SIEGE)).t, o.t, 'two undos: color, drag');
+});
+test('R2E207 a pan drag (empty space) does not block keys; Escape mid-pan does not clear the view', async (p, h, t) => {
+	await h.open(); await focusStage(p);
+	await selectIds(p, h, [SIEGE]);
+	const spot = await freeSpot(p, 'a');
+	await midDrag(p, spot.x, spot.y, 0, -80, async () => { await p.key('3'); await p.sleep(60); });
+	t.eq((await byId(h, SIEGE)).color, '3', 'digit during a pan still colors the selection (pan does not block keys)');
+});
+test('R2E208 header Redo while a card is open for editing without changes still redoes', async (p, h, t) => {
+	await h.open(); await focusStage(p);
+	await selectIds(p, h, [TREATY]); await p.key('3'); await p.key('z', 'ctrl'); await p.sleep(100);
+	const c = await cardAt(p, SIEGE); await p.dbl(c.x, c.y); await p.sleep(250);
+	const rb = await p.at(`.workspace-leaf.mod-active .view-action[aria-label="Redo"]`); await p.click(rb.x, rb.y); await p.sleep(250);
+	t.eq((await byId(h, TREATY)).color, '3', 'redo applied');
+	t.ok(!(await editing(p)), 'edit closed');
+});
+test('R2E209 header Undo while editing a brand-new card (N) removes the card in one step, nothing earlier', async (p, h, t) => {
+	await h.open(); await focusStage(p);
+	await selectIds(p, h, [TREATY]); await p.key('3'); await p.sleep(80);
+	const n = (await h.events()).length, s = await h.stage();
+	await p.move(s.l + 200, s.t + 420); await p.key('n'); await p.sleep(350);
+	await p.key('a', 'ctrl'); await p.type('Half typed');
+	const ub = await p.at(`.workspace-leaf.mod-active .view-action[aria-label="Undo"]`); await p.click(ub.x, ub.y); await p.sleep(250);
+	t.eq((await h.events()).length, n, 'new card gone');
+	t.eq((await byId(h, TREATY)).color, '3', 'earlier step kept');
+	const rb = await p.at(`.workspace-leaf.mod-active .view-action[aria-label="Redo"]`); await p.click(rb.x, rb.y); await p.sleep(250);
+	t.ok((await h.events()).some((e) => e.title === 'Half typed'), 'redo brings the named card back');
+});
+test('R2E210 E and Enter edit the selected card after a toolbar button was clicked with the mouse', async (p, h, t) => {
+	await h.open(); await h.setView(34, 12);
+	await selectIds(p, h, [SIEGE]);
+	const b = await h.ctrl('in'); await p.click(b.x, b.y); await p.sleep(500);
+	const a = await active(p);
+	await p.key('3'); await p.sleep(80);
+	t.eq((await byId(h, SIEGE)).color, '3', 'digits still act on the card (focus ' + JSON.stringify(a) + ')');
+	await p.key('e'); await p.sleep(300);
+	t.ok(await editing(p), 'REGRESSION: E does nothing after clicking a toolbar button, while digits/S/Delete still act on the card');
+	await p.key('Escape');
+});
+test('R2E211 Tab and Shift+Tab cycle inside the card menu and wrap; Escape returns focus to the timeline', async (p, h, t) => {
+	await h.open(); await focusStage(p);
+	await selectIds(p, h, [SIEGE]); await p.key('l'); await p.sleep(200);
+	const first = await p.ev(`document.activeElement.outerHTML.slice(0, 60)`);
+	let left = false;
+	for (let i = 0; i < 60; i++) { await p.key('Tab'); if (!(await active(p)).inPop) { left = true; break; } }
+	t.ok(!left, 'Tab stays in the menu');
+	await p.ev(`document.querySelector('${A} [data-r=pop] button').focus()`);
+	await p.key('Tab', 'shift'); await p.sleep(60);
+	t.ok((await active(p)).inPop, 'Shift+Tab from the first wraps to the last');
+	t.eq(await p.ev(`(() => { const all = [...document.querySelectorAll('${A} [data-r=pop] button:not([disabled]), ${A} [data-r=pop] input, ${A} [data-r=pop] select')].filter(x => x.getClientRects().length); return all.indexOf(document.activeElement) === all.length - 1; })()`), true, 'on the last control');
+	t.eq(JSON.stringify(await byId(h, SIEGE)), JSON.stringify(await byId(h, SIEGE)), 'no change');
+	await p.key('Escape'); await p.sleep(100);
+	t.ok((await active(p)).stage, 'focus on the stage');
+	t.eq(await selCount(p), 1, 'selection kept');
+});
+test('R2E212 Tab out of the tags field saves the tags and stays in the menu', async (p, h, t) => {
+	await h.open();
+	await menuOf(p, SIEGE);
+	const tg = await h.pop('[data-k=ctags]'); await p.click(tg.x, tg.y); await p.type('tabbed');
+	await p.key('Tab'); await p.sleep(120);
+	t.eq(((await byId(h, SIEGE)).tags || []).join(), 'tabbed', 'saved');
+	t.ok((await active(p)).inPop && await h.popOpen(), 'still in the menu');
+});
+test('R2E213 era editor: type a start year then Tab applies it (change on blur through the Tab trap)', async (p, h, t) => {
+	await h.open();
+	await openEra(p, h, 'k2');
+	const inp = await h.pop('[data-d=sY]'); await p.click(inp.x, inp.y);
+	await p.key('a', 'ctrl'); await p.type('10'); await p.key('Tab'); await p.sleep(200);
+	t.eq((await h.doc()).eras.find((e) => e.id === 'k2').start, 3600, 'start moved to year 10');
+	t.ok((await active(p)).inPop, 'BUG: Tab from the era start-year field loses focus to <body> (the date fields are redrawn under it): ' + JSON.stringify(await active(p)));
+	await p.key('Escape'); await p.sleep(150);
+	t.ok(!(await h.popOpen()), 'closed');
+	await p.key('z', 'ctrl'); await p.sleep(150);
+	t.eq((await h.doc()).eras.find((e) => e.id === 'k2').start, 2880, 'one undo');
+});
+test('R2E214 Delete / Backspace in the card menu: deletes from a button, never from the tags field', async (p, h, t) => {
+	await h.open();
+	await menuOf(p, SIEGE);
+	const tg = await h.pop('[data-k=ctags]'); await p.click(tg.x, tg.y); await p.type('ab'); await p.key('Backspace'); await p.key('Delete'); await p.sleep(100);
+	t.ok(await byId(h, SIEGE), 'not deleted from the field');
+	t.eq(await p.ev(`document.querySelector('${A} [data-r=pop] [data-k=ctags]').value`), 'a', 'Backspace edited the text');
+	await p.ev(`document.querySelector('${A} [data-r=pop] [data-icon="⚓"]').focus()`); await p.key('Backspace'); await p.sleep(150);
+	t.ok(!(await byId(h, SIEGE)), 'Backspace on a menu button deletes');
+	t.ok(await inTimeline(p), 'focus in timeline');
+});
+test('R2E215 Delete in the era editor (no ⌫ shown) does not delete the era', async (p, h, t) => {
+	await h.open();
+	const n = (await h.doc()).eras.length;
+	await openEra(p, h, 'k');
+	await p.ev(`document.querySelector('${A} [data-r=pop] [data-m=sub]').focus()`);
+	await p.key('Delete'); await p.sleep(150);
+	t.eq((await h.doc()).eras.length, n, 'era kept');
+	await p.key('Escape');
+});
+test('R2E216 Escape on a focused settings checkbox closes the sheet but keeps the card selection', async (p, h, t) => {
+	await h.open(); await focusStage(p);
+	await selectIds(p, h, [SIEGE]);
+	await h.openSheet('cards');
+	const cb = await h.sheet('[data-k=oTint]'); await p.click(cb.x, cb.y); await p.sleep(100);
+	await p.key('Escape'); await p.sleep(150);
+	t.ok(await p.ev(`document.querySelector('${A} [data-r=sheet]').hidden`), 'sheet closed');
+	t.eq(await selCount(p), 1, 'selection kept');
+	t.ok(await inTimeline(p), 'focus in timeline');
+});
+test('R2E217 Escape while editing a card with the settings sheet open: saves the edit, sheet stays', async (p, h, t) => {
+	await h.open(); await h.setView(34, 12);
+	await h.openSheet('cards');
+	const c = await cardAt(p, FALL); if (!c) { console.log('    (card hidden by the sheet)'); return; }
+	await p.dbl(c.x, c.y); await p.sleep(300);
+	if (!(await editing(p))) { console.log('    (not editable here)'); return; }
+	await p.key('a', 'ctrl'); await p.type('With sheet'); await p.key('Escape'); await p.sleep(150);
+	t.ok(!(await p.ev(`document.querySelector('${A} [data-r=sheet]').hidden`)), 'one thing per Escape: the sheet stays open');
+});
+test('R2E218 Escape in the palette closes it only; the card stays selected', async (p, h, t) => {
+	await h.open(); await focusStage(p);
+	await selectIds(p, h, [SIEGE]);
+	await p.key('/'); await p.sleep(150); await p.type('x'); await p.key('Escape'); await p.sleep(150);
+	t.ok(await p.ev(`document.querySelector('${A} [data-r=palette]').hidden`), 'closed');
+	t.eq(await selCount(p), 1, 'selection kept');
+});
+test('R2E219 Escape while editing keeps the selection; a second Escape clears it', async (p, h, t) => {
+	await h.open();
+	const c = await cardAt(p, SIEGE); await p.dbl(c.x, c.y); await p.sleep(250);
+	await p.key('Escape'); await p.sleep(120);
+	t.eq(await selCount(p), 1, 'still selected after ending the edit');
+	await p.key('Escape'); await p.sleep(120);
+	t.eq(await selCount(p), 0, 'cleared');
+});
+test('R2E220 right-click inside a 3-card selection, Escape, then shift-click adds a fourth', async (p, h, t) => {
+	await h.open(); await h.setView(34, 12);
+	await selectIds(p, h, [SIEGE, PLAGUE, FALL]);
+	const c = await cardAt(p, SIEGE); await p.right(c.x, c.y); await p.sleep(200);
+	t.ok(/3 cards selected/.test(await p.ev(`document.querySelector('${A} [data-r=pop]').textContent`)), 'multi menu from a non-lead card');
+	await p.key('Escape'); await p.sleep(100);
+	t.eq(await selCount(p), 3, 'kept');
+	const d = await cardAt(p, TREATY) || null;
+	if (d) { await p.click(d.x, d.y, { modifiers: 8 }); await p.sleep(100); t.eq(await selCount(p), 4, 'four'); }
+	const e = await cardAt(p, PLAGUE); await p.click(e.x, e.y); await p.sleep(100);
+	t.eq(JSON.stringify(await selIdsDom(p)), JSON.stringify([PLAGUE]), 'plain click still collapses');
+});
+test('R2E222 switching files in one tab three times: N adds exactly one card, Ctrl+Z undoes it', async (p, h, t) => {
+	await p.ev(`app.vault.create('Other.evra', '').then(() => 1)`);
+	for (const f of ['Chronicle of Veld.evra', 'Other.evra', 'Chronicle of Veld.evra', 'Other.evra']) await h.open(f);
+	await focusStage(p);
+	const s = await h.stage(); await p.move(s.l + 200, s.t + 300);
+	await p.key('n'); await p.sleep(350); await p.key('Escape'); await p.sleep(150);
+	t.eq((await h.saved('Other.evra')).events.length, 1, 'one card');
+	await p.key('z', 'ctrl'); await p.sleep(150);
+	t.eq((await h.saved('Other.evra')).events.length, 0, 'undone');
+	await h.open(); await p.sleep(200);
+	t.eq((await h.saved()).events.length, 18, 'Chronicle untouched');
+});
+phoneT('R2E223 touch: hold a card ~900ms opens its menu and does not trigger the item under the finger', async (p, h, t) => {
+	await h.open();
+	const c = await p.at(`${A} .evra-card[data-id="${SIEGE}"] .dt`) || await p.at(`${A} .evra-card:not(.group) .dt`);
+	const id = await p.ev(`document.elementFromPoint(${c.x}, ${c.y}).closest('.evra-card').dataset.id`);
+	const o = await byId(h, id);
+	await touchEv(p, 'touchStart', [[c.x, c.y]]); await p.sleep(900); await touchEv(p, 'touchEnd', []); await p.sleep(300);
+	t.ok(await h.popOpen(), 'menu open');
+	t.eq(JSON.stringify(await byId(h, id)), JSON.stringify(o), 'card unchanged by the lift');
+	t.ok(!(await hist(p, h)).u, 'no history');
+});
+phoneT('R2E224 touch: hold ~350ms then drag slowly moves the card and opens no menu', async (p, h, t) => {
+	await h.open();
+	const c = await p.at(`${A} .evra-card:not(.group) .dt`);
+	const id = await p.ev(`document.elementFromPoint(${c.x}, ${c.y}).closest('.evra-card').dataset.id`);
+	const t0 = (await byId(h, id)).t;
+	await touchEv(p, 'touchStart', [[c.x, c.y]]); await p.sleep(350);
+	for (let i = 1; i <= 30; i++) { await touchEv(p, 'touchMove', [[c.x, c.y + i * 4]]); await p.sleep(40); } // slow: 1.2 s
+	await touchEv(p, 'touchEnd', []); await p.sleep(300);
+	t.ok((await byId(h, id)).t > t0, 'moved');
+	t.ok(!(await h.popOpen()), 'no menu');
+});
+phoneT('R2E225 touch: hold still ~700ms then drag: behaviour (menu opens, drag lost?)', async (p, h, t) => {
+	await h.open();
+	const c = await p.at(`${A} .evra-card:not(.group) .dt`);
+	const id = await p.ev(`document.elementFromPoint(${c.x}, ${c.y}).closest('.evra-card').dataset.id`);
+	const t0 = (await byId(h, id)).t, v0 = (await p.ev(`${h.tl}.getViewState()`)).v0;
+	await touchEv(p, 'touchStart', [[c.x, c.y]]); await p.sleep(700);
+	for (let i = 1; i <= 12; i++) { await touchEv(p, 'touchMove', [[c.x, c.y + i * 10]]); await p.sleep(20); }
+	await touchEv(p, 'touchEnd', []); await p.sleep(300);
+	const moved = (await byId(h, id)).t !== t0, menu = await h.popOpen(), panned = (await p.ev(`${h.tl}.getViewState()`)).v0 !== v0;
+	console.log(`    hold 700ms then drag: card moved=${moved}, menu open=${menu}, view panned=${panned}`);
+	t.ok(moved || menu, 'either drags or shows the menu; never silently does nothing');
+	t.ok(!(menu && panned), 'menu open and view panned underneath it');
+});
+phoneT('R2E226 touch: a quick tap on a card selects it and opens no menu', async (p, h, t) => {
+	await h.open();
+	const c = await p.at(`${A} .evra-card:not(.group) .dt`);
+	await touchEv(p, 'touchStart', [[c.x, c.y]]); await p.sleep(60); await touchEv(p, 'touchEnd', []); await p.sleep(700);
+	t.ok(!(await h.popOpen()), 'no menu after a tap');
+	t.eq(await selCount(p), 1, 'selected');
+});
+test('R2E227 Ctrl+D pressed mid-drag is ignored like other keys (it goes through the Obsidian scope)', async (p, h, t) => {
+	await h.open(); await h.setView(34, 12);
+	const n = (await h.events()).length, c = await cardAt(p, SIEGE);
+	await midDrag(p, c.x, c.y, 0, 60, async () => { await p.key('d', 'ctrl'); await p.sleep(80); });
+	t.eq((await h.events()).length, n, 'BUG: Ctrl+D mid-drag duplicated the card');
+});

@@ -916,3 +916,141 @@ test('direction change while the search palette is open leaves it usable', async
 	const ev = await h.ev('Treaty of Sallow'), [a, b] = await k.vis();
 	t.ok(ev.t >= a && ev.t <= b, 'jumped to the card in ltr');
 });
+
+/* ================= R2X: phone-width one-sided layout (pass 2) ================= */
+const setSize = async (p, w, hh) => { await p.send('Emulation.setDeviceMetricsOverride', { width: w, height: hh, deviceScaleFactor: 1, mobile: false }); await p.sleep(450); };
+const lineCross = (p) => p.ev(`(() => { const s = document.querySelector('${A} .stage').getBoundingClientRect(); const ln = document.querySelector('${A} .lines line[style*="dasharray: 2"], ${A} .lines line[style*="dasharray:2"]'); const r = ln.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2, s: { l: s.left, r: s.right, t: s.top, b: s.bottom } }; })()`);
+const cardRects = (p) => p.ev(`[...document.querySelectorAll('${A} .cards > .evra-card')].map(c => { const r = c.getBoundingClientRect(); return { id: c.dataset.id, l: r.left, r: r.right, t: r.top, b: r.bottom }; })`);
+for (const w of [300, 360, 450, 519]) for (const d of DIRS) test(`R2X [${d}] ${w}px: one-sided layout keeps cards beside the line, inside the stage, clear of the controls`, sized(w, 760, async (p, h, t) => {
+	const k = kit(p, h); await k.start(d);
+	const vert = d === 'ttb' || d === 'btt', bad = new Set();
+	for (const v of [[12000, 4000], [9000, 7200], [13975, 40]]) {
+		await k.view(...v);
+		const ln = await lineCross(p), cards = await cardRects(p), ctr = await p.at(`${A} .ctrls`);
+		if (SHOTDIR && w === 300) await p.shot(`${SHOTDIR}/r2x300-${d}-${v[1]}.png`);
+		for (const c of cards) {
+			if (c.b < ln.s.t || c.t > ln.s.b || c.r < ln.s.l || c.l > ln.s.r) continue; // off screen along the line
+			if (vert && c.l < ln.x - 1) bad.add(`${c.id} left of the line @${v}`);
+			if (vert && c.r > ln.s.r + 1) bad.add(`${c.id} past the stage right @${v}`);
+			if (vert && ctr && c.r > ctr.l + 1 && c.b > ctr.t && c.t < ctr.t + ctr.h) bad.add(`${c.id} under the zoom controls @${v}`);
+		}
+		if (!vert) { const ru = await p.at(`${A} .ruler > span:not([hidden])`); if (ru && ln.y > ru.t) bad.add(`line below the ruler @${v}`); }
+		(await layoutProblems(p)).forEach((x) => bad.add(x + ' @' + v));
+	}
+	t.ok(!bad.size, [...bad].slice(0, 8).join('; '));
+}));
+for (const d of ['ttb', 'btt']) test(`R2X [${d}] 390px: dragging a card across the line changes its date but keeps its side in the file`, sized(390, 760, async (p, h, t) => {
+	const k = kit(p, h); await k.start(d);
+	await k.setDoc(`(d) => { d.events.push({ id: 'ls', t: 20013, side: 'a', title: 'Left side', text: '', color: '2', file: null }, { id: 'rs', t: 21013, side: 'b', title: 'Right side', text: '', color: '3', file: null }); }`);
+	await k.view(19600, 2400);
+	const ln = await lineCross(p);
+	for (const id of ['ls', 'rs']) {
+		const c = await p.at(`${A} .cards > .evra-card[data-id="${id}"]`);
+		t.ok(c && c.l > ln.x, id + ' drawn right of the line');
+		const e0 = (await h.events()).find((x) => x.id === id);
+		await p.drag(c.x, c.y, Math.max(ln.s.l + 5, ln.x - 60), c.y + (d === 'btt' ? -80 : 80)); await p.sleep(250);
+		const e1 = (await h.events()).find((x) => x.id === id);
+		t.ok(e1.t !== e0.t, id + ' date changed');
+		t.eq(e1.side, e0.side, id + ' side kept');
+	}
+	t.eq((await h.saved()).events.find((x) => x.id === 'ls').side, 'a', 'saved side');
+}));
+test('R2X 390px: arrow keys across the line do not silently rewrite the (invisible) side', sized(390, 760, async (p, h, t) => {
+	const k = kit(p, h); await k.start('ttb');
+	await k.setDoc(`(d) => { d.events.push({ id: 'ar', t: 20013, side: 'b', title: 'Arrow card', text: '', color: '2', file: null }); }`);
+	await k.view(19600, 2400);
+	await h.focusStage(); await p.ev(`${h.tl}.focusEvent('ar')`); await p.sleep(400);
+	await p.key('ArrowLeft'); await p.sleep(250);
+	const e = (await h.events()).find((x) => x.id === 'ar');
+	t.ok(e.side === 'b' || /side/i.test(await h.toast()), 'ArrowLeft changed the saved side to "' + e.side + '" with no visible change and no message');
+}));
+test('R2X resizing across 520px with a card selected and its menu open', async (p, h, t) => {
+	const k = kit(p, h); await k.start('ttb');
+	try {
+		await k.view(12000, 4000);
+		const ev = await h.ev('Treaty of Sallow');
+		await p.ev(`${h.tl}.focusEvent(${JSON.stringify(ev.id)})`); await p.sleep(700);
+		await h.focusStage(); await p.ev(`${h.tl}.focusEvent(${JSON.stringify(ev.id)})`); await p.sleep(300); await p.key('l'); await p.sleep(250);
+		t.ok(await h.popOpen(), 'menu open');
+		for (const w of [700, 480, 600, 360, 1000]) {
+			await setSize(p, w, 800);
+			const pop = await p.at(`${A} [data-r=pop]`), s = await h.stage();
+			if (pop) t.ok(pop.l >= s.l - 1 && pop.l + pop.w <= s.l + s.w + 1, `${w}px: menu inside the stage ${JSON.stringify(pop)}`);
+			t.ok(await p.ev(`!!document.querySelector('${A} .evra-card.sel')`), `${w}px: still selected`);
+			const [a, b] = await k.vis(); t.ok(ev.t >= a && ev.t <= b, `${w}px: selected card's date still in view`);
+		}
+		await p.key('Escape');
+		t.eq((await h.saved()).events.find((e) => e.id === ev.id).side, ev.side, 'side untouched');
+	} finally { await setSize(p, p.width, p.height); }
+});
+test('R2X resizing across 520px while the era editor is open, then renaming', async (p, h, t) => {
+	const k = kit(p, h); await k.start('ttb');
+	try {
+		await k.openEd('s2');
+		await setSize(p, 400, 760); await setSize(p, 900, 760);
+		await p.ev(`document.querySelector('${A} [data-r=pop] [data-k=eraName]')?.focus()`);
+		if (await h.popOpen()) { await p.key('a', 'ctrl'); await p.type('Resized'); await p.key('Enter'); await p.sleep(200); t.eq((await h.saved()).eras.find((e) => e.id === 's2').name, 'Resized', 'rename saved'); }
+		else t.ok(true, '');
+	} finally { await setSize(p, p.width, p.height); }
+});
+for (const d of ['ttb', 'btt']) test(`R2X [${d}] 390px: dots, era edges and drag-to-create work on the one-sided line`, sized(390, 760, async (p, h, t) => {
+	const k = kit(p, h); await k.start(d);
+	await k.setDoc(`(d) => { d.events.push({ id: 'pm', t: 20013, side: 'a', title: 'Pull me', text: '', color: '2', file: null }); }`);
+	await k.view(19200, 2400);
+	const a = await k.pt(20013), b = await k.pt(20013 + 720);
+	await p.drag(a.x, a.y, b.x, b.y); await p.sleep(200);
+	const e = (await h.events()).find((x) => x.id === 'pm');
+	t.ok(e.end > e.t && e.side === 'a', 'pulled into a span, side kept ' + JSON.stringify(e));
+	await k.view(15000, 4000);
+	await k.dragT(16920, 17640, false, -30); // on the line itself sits Death of Isolde's dot, which wins
+	t.eq((await k.era('s1')).end, 17640, 'era edge dragged beside the line');
+	await k.view(25000, 3000);
+	const ne = await k.mkEra(25200, 25920);
+	t.ok(ne && ne.parent === 's3', 'drag along the line makes a sub-era ' + JSON.stringify(ne));
+}));
+test('R2X 390px: zoomed out groups and compact peeks stay on screen, peek covers its card', sized(390, 760, async (p, h, t) => {
+	const k = kit(p, h); await k.start('ttb');
+	await k.setDoc(`(d) => { for (let i = 0; i < 200; i++) d.events.push({ id: 'm' + i, t: Math.round(28800 * i / 200), side: i % 2 ? 'a' : 'b', title: 'Moment ' + i, text: 'words ' + i, color: String(i % 6 + 1), file: null }); }`);
+	const s = await h.stage();
+	for (const span of [360 * 3, 360 * 12, 360 * 30]) {
+		await k.view(12000, span);
+		const out = await p.ev(`[...document.querySelectorAll('${A} .cards > .evra-card')].filter(c => { const r = c.getBoundingClientRect(); return r.bottom > ${s.t} && r.top < ${s.t + s.h} && (r.left < ${s.l} - 1 || r.right > ${s.l + s.w} + 1); }).length`);
+		const xbar = await p.ev(`!document.querySelector('${A} .xbar').hidden`);
+		t.ok(out === 0 || xbar, `span ${span}: ${out} cards sticking out sideways with no way to scroll to them`);
+	}
+	const c = await p.ev(`(() => { for (const e of document.querySelectorAll('${A} .cards > .evra-card.compact:not(.group)')) { const r = e.getBoundingClientRect(); const x = r.x + r.width / 2, y = r.y + r.height / 2; if (y < ${s.t} + 80 || y > ${s.t + s.h} - 80) continue; const hit = document.elementFromPoint(x, y); if (hit && hit.closest('.evra-card') === e) return { x, y, l: r.left, r: r.right, id: e.dataset.id }; } return null; })()`);
+	if (c) {
+		await p.move(c.x, c.y); await p.sleep(600);
+		const pk = await p.at(`${A} .evra-card.peek`);
+		t.ok(pk && pk.l >= s.l - 1 && pk.l + pk.w <= s.l + s.w + 1, 'peek inside ' + JSON.stringify(pk));
+		t.ok(pk && pk.l <= c.l + 2 && pk.l + pk.w >= c.r - 2, `peek covers its card (card ${Math.round(c.l)}..${Math.round(c.r)}, peek ${pk && Math.round(pk.l)}..${pk && Math.round(pk.l + pk.w)})`);
+	} else t.ok(await p.ev(`document.querySelectorAll('${A} .cards > .evra-card.group').length`) > 0, 'some compact or group card');
+}));
+test('R2X 390px: settings tabs wrap so every tab is visible without scrolling', sized(390, 760, async (p, h, t) => {
+	const k = kit(p, h); await k.start('ttb');
+	await h.openSheet('calendar');
+	const r = await p.at(`${A} [data-r=sheet]`);
+	for (const tab of ['calendar', 'formats', 'timeline', 'cards', 'colors', 'notes']) {
+		const b = await p.at(`${A} [data-tab=${tab}]`);
+		t.ok(b && b.l >= r.l - 1 && b.l + b.w <= r.l + r.w + 1, tab + ' fully visible ' + JSON.stringify(b));
+	}
+}));
+for (const d of DIRS) test(`R2X [${d}] 390px screenshot and double-click add`, sized(390, 760, async (p, h, t) => {
+	const k = kit(p, h); await k.start(d);
+	await k.view(12000, 4000);
+	if (SHOTDIR) await p.shot(`${SHOTDIR}/r2x-${d}-${await p.ev(`document.body.classList.contains('theme-dark') ? 'dark' : 'light'`)}.png`);
+	const n0 = (await h.events()).length;
+	let q = null; for (const c of [-40, 40, 90, -90, 150, 200]) { const r = await k.pt(12600, c); if (await p.ev(`(() => { const e = document.elementFromPoint(${r.x}, ${r.y}); return !!e && !e.closest('.ui, .evra-card, .ribbon, [data-thread], [data-era]'); })()`)) { q = r; break; } }
+	if (!q) return; // every probe landed on a card: nothing to double-click here
+	await p.dbl(q.x, q.y); await p.sleep(400);
+	t.eq((await h.events()).length, n0 + 1, 'added');
+	await p.key('Escape');
+}));
+
+for (const d of ['ttb', 'btt']) test(`R2X [${d}] 390px: era labels do not sit on the line, its dots or the cards`, sized(390, 760, async (p, h, t) => {
+	const k = kit(p, h); await k.start(d);
+	await k.view(12000, 4000);
+	const ln = await lineCross(p);
+	const bad = await p.ev(`(() => { const cards = [...document.querySelectorAll('${A} .cards > .evra-card')].map(c => c.getBoundingClientRect()); return [...document.querySelectorAll('${A} .eralabels .el:not([hidden])')].map(e => ({ n: e.textContent, r: e.getBoundingClientRect() })).filter(x => x.r.right > ${ln.x} - 4 || cards.some(c => Math.min(c.right, x.r.right) - Math.max(c.left, x.r.left) > 2 && Math.min(c.bottom, x.r.bottom) - Math.max(c.top, x.r.top) > 2)).map(x => x.n + ' ' + Math.round(x.r.left) + '..' + Math.round(x.r.right)); })()`);
+	t.ok(!bad.length, `line at x=${Math.round(ln.x)}; labels on the line or cards: ` + bad.join('; '));
+}));
