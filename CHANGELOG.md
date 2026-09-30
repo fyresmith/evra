@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.4.10 (beta)
+
+- Fixed: renaming or moving a linked note updated the card's title on screen but not the saved link, so the link broke after reopening the timeline. Links now follow the note in open and closed timelines.
+
 ## 0.4.9 (beta)
 
 - Fixed: in Settings → Colors, a built-in color that the theme defines as a blend (like light mode's yellow) showed as gray #888888. Built-in colors now always show their real hex code.

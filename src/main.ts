@@ -88,9 +88,9 @@ export default class EvraPlugin extends Plugin {
 				try { doc = JSON.parse(data) as typeof doc; } catch { return data; }
 				let changed = false;
 				(doc.events || []).forEach((e) => {
-					if (e && e.file && linkMatchesPath(e.file, oldPath) && !this.app.metadataCache.getFirstLinkpathDest(e.file, f.path)) {
-						e.file = this.app.metadataCache.fileToLinktext(file, f.path, true); changed = true;
-					}
+					if (!e || !e.file || !linkMatchesPath(e.file, oldPath)) return;
+					const now = this.app.metadataCache.getFirstLinkpathDest(e.file, f.path), link = this.app.metadataCache.fileToLinktext(file, f.path, true);
+					if ((!now || now === file) && e.file !== link) { e.file = link; changed = true; }
 				});
 				return changed ? JSON.stringify(doc, null, '\t') : data;
 			});
