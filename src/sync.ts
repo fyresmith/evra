@@ -1,4 +1,4 @@
-import { clamp, str, type Engine } from './engine';
+import { clamp, saneYear, str, type Engine } from './engine';
 import { SYNC_FIELDS } from './model';
 import type { EvraDoc, EvraEvent, SyncKey } from './types';
 
@@ -62,13 +62,13 @@ export function dateFromProps(fm: Record<string, unknown>, doc: EvraDoc, E: Engi
 	const sy = doc.opts.sync, f = sy.fields, cur = E.parts(ev.t), pr = fm || {};
 	let yr = cur.yr, m = cur.m, d = cur.d;
 	const get = (key: string): unknown => pr[key];
-	if (f.year.on && get(f.year.key) != null) { const n = parseInt(str(get(f.year.key)), 10); if (!isNaN(n)) yr = n - doc.cal.yearStart; }
+	if (f.year.on && get(f.year.key) != null) { const n = parseInt(str(get(f.year.key)), 10); if (saneYear(n)) yr = n - doc.cal.yearStart; }
 	if (f.month.on && get(f.month.key) != null && E.ci().M > 1) {
 		const v = str(get(f.month.key)).toLowerCase(), i = doc.cal.months.findIndex((x, j) => E.monthName(j).toLowerCase() === v), n = parseInt(v, 10);
 		m = i >= 0 ? i : n >= 1 && n <= E.ci().M ? n - 1 : m;
 	}
 	if (f.day.on && get(f.day.key) != null) { const n = parseInt(str(get(f.day.key)), 10); if (n >= 1) d = n - 1; }
-	d = Math.min(d, doc.cal.months[m].days - 1);
+	// toT keeps the day within this month in this year, so a leap day stays a leap day
 	const t = E.toT(yr, m, d);
 	return t === ev.t ? null : t;
 }
@@ -80,13 +80,15 @@ export function noteDateOf(fm: Record<string, unknown>, doc: EvraDoc, E: Engine)
 	const pick = (...keys: string[]): unknown => keys.map((k) => k && low[k.toLowerCase()]).find((v) => v != null && v !== '');
 	const y = pick(f.year.key, 'year', 'timeline-year'), m = pick(f.month.key, 'month'), d = pick(f.day.key, 'day'), ds = pick(f.date.key, 'date');
 	const s = str;
-	if (y != null && !isNaN(parseInt(s(y), 10))) {
+	const yn = y != null ? parseInt(s(y), 10) : NaN;
+	if (!isNaN(yn)) {
+		if (!saneYear(yn)) return null;
 		let mi = 0;
 		if (m != null) {
 			const i = doc.cal.months.findIndex((x, j) => E.monthName(j).toLowerCase() === s(m).toLowerCase());
 			mi = i >= 0 ? i : clamp((parseInt(s(m), 10) || 1) - 1, 0, doc.cal.months.length - 1);
 		}
-		return E.toT(parseInt(s(y), 10) - doc.cal.yearStart, mi, d != null ? Math.max(0, (parseInt(s(d), 10) || 1) - 1) : 0);
+		return E.toT(yn - doc.cal.yearStart, mi, d != null ? Math.max(0, (parseInt(s(d), 10) || 1) - 1) : 0);
 	}
 	return ds != null && typeof ds !== 'object' ? E.parseDateQuery(s(ds)) : null;
 }

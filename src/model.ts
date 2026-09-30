@@ -1,5 +1,5 @@
-import { DEFAULT_FMT, str, uid } from './engine';
-import type { Calendar, ColorPreset, EvraDoc, EvraEvent, LeapRule, Month, Opts, SyncKey, SyncOpts, TimelineDefaults } from './types';
+import { clamp, DEFAULT_FMT, makeEngine, str, uid } from './engine';
+import type { Calendar, ColorPreset, Era, EvraDoc, EvraEvent, Formats, LeapRule, Month, Opts, SecondCalendar, SyncField, SyncKey, SyncOpts, TimelineDefaults, Units } from './types';
 
 /* Creating, upgrading and checking timeline documents. */
 
@@ -23,6 +23,10 @@ export const DEFAULT_OPTS: Omit<Opts, 'sync'> = { spanStyle: 'threads', groupOve
 export const DEFAULT_UNITS = { day: 'day', month: 'month', year: 'year', years: 'years' };
 
 const int = (v: unknown, dflt: number): number => { const n = parseInt(str(v), 10); return isNaN(n) ? dflt : n; };
+/** Dates are day counts; anything this far out (about 2.7 trillion years) is a typo or a broken file, and the date maths can't stay exact past it. */
+export const DAY_LIMIT = 1e15;
+/** A usable day count: a finite number within DAY_LIMIT. */
+export const okDay = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v) && Math.abs(v) < DAY_LIMIT;
 
 /** Older or hand-written calendars, before months had their own lengths. */
 interface RawCal extends Partial<Omit<Calendar, 'months' | 'leaps'>> {
@@ -31,62 +35,154 @@ interface RawCal extends Partial<Omit<Calendar, 'months' | 'leaps'>> {
 	dpm?: number; mpy?: number; prefix?: string; suffix?: string; unit?: string;
 }
 
+type Loose = Record<string, unknown>;
+/** A plain object (not an array). */
+const isObj = (v: unknown): v is Loose => !!v && typeof v === 'object' && !Array.isArray(v);
+/** A whole number from a number or numeric text, kept within lo..hi; dflt when there's none. */
+const num = (v: unknown, dflt: number, lo: number, hi: number): number => { const n = int(v, dflt); return Number.isFinite(n) ? clamp(n, lo, hi) : dflt; };
+/** An id from a string or number, or a new one. */
+const idOf = (v: unknown): string => (typeof v === 'string' && v ? v : typeof v === 'number' && Number.isFinite(v) ? String(v) : uid());
+const text = (v: unknown, dflt: string): string => (typeof v === 'string' ? v : dflt);
+const bool = (v: unknown, dflt: boolean): boolean => (typeof v === 'boolean' ? v : dflt);
+const HEX = /^#[0-9a-fA-F]{6}$/;
+const DEFAULT_SECOND:SecondCalendar = { on: false, name: 'Second calendar', yearDays: 400, offset: 0, fmt: '{Y} SR', onCards: true };
+
 export function normCal(raw: unknown): Calendar {
-	const c = (raw && typeof raw === 'object' ? raw : {}) as RawCal;
+	const c = (isObj(raw) ? raw : {}) as RawCal;
+	const prefix = text(c.prefix, ''), suffix = text(c.suffix, '');
 	if (!Array.isArray(c.months) || typeof c.months[0] === 'string' || c.dpm) {
-		const names = (Array.isArray(c.months) ? c.months : []) as string[], n = c.mpy || names.length || 12, dpm = c.dpm || 30;
+		const names = (Array.isArray(c.months) ? c.months : []) as unknown[];
+		const n = num(c.mpy, 0, 0, 1000) || Math.min(names.length, 1000) || 12, dpm = Math.max(1, num(c.dpm, 30, -1e6, 1e6) || 30);
 		c.months = Array.from({ length: n }, (_, i) => ({ id: uid(), name: typeof names[i] === 'string' ? names[i] : '', days: dpm }));
 	}
-	let months = (c.months as Month[]).filter((m) => m && typeof m === 'object');
+	let months = (c.months as Month[]).filter((m) => isObj(m));
 	if (!months.length) months = [{ id: uid(), name: '', days: 360 }];
-	months.forEach((m) => { m.id = m.id ? String(m.id) : uid(); m.days = Math.max(1, int(m.days, 30) || 30); m.name = m.name == null ? '' : String(m.name); m.inter = !!m.inter; });
-	if (!c.units) { const u = (c.prefix || 'year').toLowerCase(); c.units = { day: 'day', month: 'month', year: u, years: u + 's' }; }
-	c.units = { ...DEFAULT_UNITS, ...c.units };
-	if (!c.fmt) c.fmt = { year: [c.prefix ? '{U}' : '', '{Y}', c.suffix || ''].filter(Boolean).join(' ') } as Calendar['fmt'];
+	months.forEach((m) => { m.id = idOf(m.id); m.days = Math.max(1, num(m.days, 30, -1e6, 1e6) || 30); m.name = str(m.name); m.inter = !!m.inter; });
+	if (!isObj(c.units)) { const u = (prefix || 'year').toLowerCase(); c.units = { day: 'day', month: 'month', year: u, years: u + 's' }; }
+	const units = { ...DEFAULT_UNITS, ...c.units } as Units & Loose;
+	for (const k of Object.keys(DEFAULT_UNITS) as (keyof Units)[]) if (typeof units[k] !== 'string') units[k] = DEFAULT_UNITS[k];
+	if (!isObj(c.fmt)) c.fmt = { year: [prefix ? '{U}' : '', '{Y}', suffix].filter(Boolean).join(' ') } as Calendar['fmt'];
+	const fmt = { ...DEFAULT_FMT, ...c.fmt } as Formats & Loose;
+	for (const k of Object.keys(DEFAULT_FMT) as (keyof Formats)[]) if (typeof fmt[k] !== typeof DEFAULT_FMT[k]) (fmt as Loose)[k] = DEFAULT_FMT[k];
+	const s2 = { ...DEFAULT_SECOND, ...(isObj(c.second) ? c.second : {}) } as SecondCalendar & Loose;
+	s2.on = bool(s2.on, false); s2.name = text(s2.name, DEFAULT_SECOND.name); s2.fmt = text(s2.fmt, DEFAULT_SECOND.fmt); s2.onCards = bool(s2.onCards, true);
+	if (!(okDay(s2.yearDays) && s2.yearDays > 0)) s2.yearDays = DEFAULT_SECOND.yearDays;
+	if (!okDay(s2.offset)) s2.offset = 0;
 	const cal: Calendar = {
 		months,
-		units: c.units,
-		fmt: { ...DEFAULT_FMT, ...c.fmt },
-		yearStart: int(c.yearStart, 0),
-		leaps: (c.leaps || []).filter((r) => r && r.month).map((r) => ({
-			id: r.id || uid(), month: String(r.month), days: int(r.days, 1) || 1, every: Math.max(1, int(r.every, 4) || 4),
-			except: int(r.except, 0), unless: int(r.unless, 0), off: int(r.off, 0),
+		units,
+		fmt,
+		yearStart: num(c.yearStart, 0, -1e12, 1e12),
+		leaps: (Array.isArray(c.leaps) ? c.leaps : []).filter((r) => isObj(r) && (typeof r.month === 'string' || typeof r.month === 'number') && r.month !== '').map((r) => ({
+			...r, id: idOf(r.id), month: String(r.month), days: num(r.days, 1, -1e6, 1e6) || 1, every: Math.max(1, num(r.every, 4, -1e9, 1e9) || 4),
+			except: num(r.except, 0, 0, 1e9), unless: num(r.unless, 0, 0, 1e9), off: num(r.off, 0, -1e9, 1e9),
 		})),
-		weekdays: Array.isArray(c.weekdays) ? c.weekdays.map(String) : [],
-		weekStart: int(c.weekStart, 0),
+		weekdays: Array.isArray(c.weekdays) ? c.weekdays.map((w) => str(w)) : [],
+		weekStart: num(c.weekStart, 0, -1e9, 1e9),
 		eraBase: c.eraBase === 0 ? 0 : 1,
-		second: { on: false, name: 'Second calendar', yearDays: 400, offset: 0, fmt: '{Y} SR', onCards: true, ...(c.second || {}) },
+		second: s2,
 	};
 	// keep the same object, so anything holding the calendar sees the update; unknown fields are kept
 	for (const k of ['dpm', 'mpy', 'prefix', 'suffix', 'unit']) delete (c as Record<string, unknown>)[k];
 	return Object.assign(c as unknown as Calendar, cal);
 }
 
+/** A color preset id, or null. */
+const colorOf = (v: unknown): string | null => (typeof v === 'string' ? v : typeof v === 'number' && Number.isFinite(v) ? String(v) : null);
+
+/** Parents must be other eras that exist, and no era may be its own ancestor: a cycle is broken at the era that closes it. */
+function fixEraParents(eras: Era[]): void {
+	const by = new Map(eras.map((e) => [e.id, e]));
+	eras.forEach((e) => { if (e.parent != null && (e.parent === e.id || !by.has(e.parent))) e.parent = null; });
+	const done = new Set<string>();
+	for (const e of eras) {
+		const path = new Set<string>();
+		let p = e;
+		while (p && p.parent != null && !done.has(p.id)) {
+			path.add(p.id);
+			const up = by.get(p.parent);
+			if (path.has(up.id)) { p.parent = null; break; }
+			p = up;
+		}
+		path.forEach((id) => done.add(id));
+	}
+}
+
+/** The range in years: two whole numbers, end after start. Otherwise years 0 to 10, widened to hold every event and era. */
+function normRange(d: EvraDoc): [number, number] {
+	const E = makeEngine(() => d), lim = DAY_LIMIT / Math.max(1, E.dpy());
+	const r = Array.isArray(d.range) && d.range.length === 2 ? d.range.map((x) => (typeof x === 'number' && Number.isFinite(x) ? Math.round(x) : NaN)) : [];
+	if (r.length === 2 && Math.abs(r[0]) < lim && Math.abs(r[1]) < lim && r[1] > r[0]) return [r[0], r[1]];
+	let a = E.yearStartT(0), b = E.yearStartT(10);
+	d.events.forEach((e) => { a = Math.min(a, e.t); b = Math.max(b, e.end ?? e.t); });
+	d.eras.forEach((e) => { a = Math.min(a, e.start); b = Math.max(b, e.end); });
+	const y0 = E.yearOf(a), y1 = E.yearOf(b);
+	return [y0, Math.max(y0 + 1, E.yearStartT(y1) === b ? y1 : y1 + 1)];
+}
+
 /** Fill in anything a document is missing, so older and hand-edited files open. */
 export function normDoc(raw: unknown, fallbackName = 'Untitled'): EvraDoc {
 	const d = (raw && typeof raw === 'object' ? raw : {}) as Partial<EvraDoc>;
-	if (!Array.isArray(d.palette) || !d.palette.length) d.palette = defaultPalette();
-	d.palette = d.palette.filter((p) => p && p.id).map((p) => ({ id: String(p.id), name: String(p.name ?? 'Untitled color'), hex: p.hex || null }));
+	const palette = (Array.isArray(d.palette) ? d.palette : []).filter((p) => isObj(p) && (typeof p.id === 'string' || typeof p.id === 'number') && p.id !== '')
+		.map((p): ColorPreset => ({ ...p, id: String(p.id), name: text(p.name, typeof p.name === 'number' ? String(p.name) : 'Untitled color'), hex: typeof p.hex === 'string' && HEX.test(p.hex) ? p.hex : null }));
+	d.palette = palette.length ? palette : defaultPalette();
 	d.cal = normCal(d.cal);
-	const o = (d.opts || {}) as Partial<Opts>;
-	if (!o.sync) o.sync = defaultSync();
-	const ds = defaultSync();
-	o.sync = { ...ds, ...o.sync, fields: { ...ds.fields, ...(o.sync.fields || {}) } };
-	if (!Array.isArray(o.sync.written)) o.sync.written = [];
-	if (!Array.isArray(o.sync.notes)) o.sync.notes = [];
+	const o = (isObj(d.opts) ? d.opts : {}) as Partial<Opts>;
+	const ds = defaultSync(), sy = (isObj(o.sync) ? o.sync : {}) as Partial<SyncOpts>;
+	const fields = { ...ds.fields, ...(isObj(sy.fields) ? sy.fields : {}) } as Record<string, unknown>;
+	for (const k of Object.keys(fields)) {
+		const f = fields[k], dflt = (ds.fields as Record<string, SyncField>)[k];
+		if (!isObj(f)) { if (dflt) fields[k] = dflt; else delete fields[k]; continue; }
+		const key = typeof f.key === 'string' ? f.key : dflt ? dflt.key : null;
+		if (key == null) { delete fields[k]; continue; }
+		fields[k] = { ...f, on: bool(f.on, dflt ? dflt.on : false), key };
+	}
+	const strs = (v: unknown): string[] => (Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : []);
+	o.sync = { ...ds, ...sy, on: bool(sy.on, false), fields: fields as SyncOpts['fields'], written: strs(sy.written), notes: strs(sy.notes) };
 	if (o.v !== 2) { o.cardLines = 99; o.v = 2; }
+	const count = (v: unknown, dflt: number) => (typeof v === 'number' && Number.isFinite(v) && v >= 0 ? Math.min(v, 1e6) : dflt);
+	o.cardLines = count(o.cardLines, DEFAULT_OPTS.cardLines);
+	o.groupOver = count(o.groupOver, DEFAULT_OPTS.groupOver);
+	if (!['threads', 'blocks'].includes(o.spanStyle)) o.spanStyle = DEFAULT_OPTS.spanStyle;
+	if (!['auto', 'd', 'm', 'y'].includes(o.snapTo)) o.snapTo = DEFAULT_OPTS.snapTo;
+	for (const k of ['bands', 'subLabels', 'tint'] as const) o[k] = bool(o[k], DEFAULT_OPTS[k]);
+	if ('fadeFuture' in o && typeof o.fadeFuture !== 'boolean') delete o.fadeFuture;
 	d.opts = { ...DEFAULT_OPTS, ...o } as Opts;
 	d.name = typeof d.name === 'string' ? d.name : fallbackName;
-	if (!Array.isArray(d.range) || d.range.length !== 2 || !(d.range[1] > d.range[0])) d.range = [0, 10];
-	d.range = [int(d.range[0], 0), int(d.range[1], 10)];
 	if (!['ttb', 'btt', 'ltr', 'rtl'].includes(d.orientation)) d.orientation = 'ttb';
-	d.cardWidth = int(d.cardWidth, 240) || 240;
-	d.eras = (Array.isArray(d.eras) ? d.eras : []).filter((e) => e && typeof e.start === 'number' && typeof e.end === 'number')
-		.map((e) => ({ ...e, id: e.id ? String(e.id) : uid(), parent: e.parent ?? null, name: String(e.name ?? 'Untitled era'), color: e.color ?? null }));
-	d.events = (Array.isArray(d.events) ? d.events : []).filter((e) => e && typeof e.t === 'number')
-		.map((e): EvraEvent => ({ ...e, id: e.id ? String(e.id) : uid(), side: e.side === 'a' ? 'a' : 'b', title: String(e.title ?? ''), text: String(e.text ?? ''), color: e.color ?? null, file: e.file ?? null }));
-	if (d.events.some((e) => e.end != null && typeof e.end !== 'number')) d.events.forEach((e) => { if (e.end != null && typeof e.end !== 'number') delete e.end; });
+	d.cardWidth = clamp(int(d.cardWidth, 240) || 240, 160, 360); // the card-width slider's range
+	d.eras = (Array.isArray(d.eras) ? d.eras : []).filter((e) => isObj(e) && okDay(e.start) && okDay(e.end))
+		.map((e): Era => {
+			const x: Era = { ...e, id: idOf(e.id), parent: typeof e.parent === 'string' || typeof e.parent === 'number' ? String(e.parent) : null, name: str(e.name) || (typeof e.name === 'string' ? '' : 'Untitled era'), color: colorOf(e.color) };
+			if (x.end < x.start) [x.start, x.end] = [x.end, x.start];
+			if ('abbr' in x && typeof x.abbr !== 'string') delete x.abbr;
+			return x;
+		})
+		.filter((e) => e.end > e.start);
+	fixEraParents(d.eras);
+	d.events = (Array.isArray(d.events) ? d.events : []).filter((e) => isObj(e) && okDay(e.t))
+		.map((e): EvraEvent => ({ ...e, id: idOf(e.id), side: e.side === 'a' ? 'a' : 'b', title: str(e.title), text: str(e.text), color: colorOf(e.color), file: typeof e.file === 'string' ? e.file : null }));
+	d.events.forEach((e) => {
+		if ('end' in e && !(okDay(e.end) && e.end > e.t)) delete e.end; // a span that ends where it starts, or before, is a moment
+		for (const k of ['os', 'oe', 'life'] as const) if (k in e && typeof e[k] !== 'boolean') delete e[k];
+		if ('icon' in e && typeof e.icon !== 'string') delete e.icon;
+		for (const k of ['tags', 'people'] as const) {
+			if (!(k in e)) continue;
+			if (Array.isArray(e[k])) e[k] = e[k].filter((x) => typeof x === 'string'); else delete e[k];
+		}
+		if ('circa' in e && !(okDay(e.circa) && e.circa > 0)) delete e.circa;
+		if ('rel' in e) {
+			const r = e.rel as unknown;
+			if (!isObj(r) || typeof r.to !== 'string' || (r.from !== 'start' && r.from !== 'end')) delete e.rel;
+			else { if ('offset' in r && !okDay(r.offset)) delete r.offset; if ('at' in r && !okDay(r.at)) delete r.at; }
+		}
+	});
+	if ('now' in d && d.now !== null && !okDay(d.now)) d.now = null;
 	if (!Array.isArray(d.views)) delete d.views;
+	else d.views = d.views.filter((v) => v && typeof v === 'object' && okDay(v.a) && okDay(v.b));
+	if ('lastView' in d && !(Array.isArray(d.lastView) && d.lastView.length === 2 && okDay(d.lastView[0]) && okDay(d.lastView[1]))) delete d.lastView;
+	if ('forkAt' in d && !okDay(d.forkAt)) delete d.forkAt;
+	d.range = normRange(d as EvraDoc);
 	d.format = 'evra';
 	d.version = 1;
 	return d as EvraDoc;

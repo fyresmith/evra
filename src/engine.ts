@@ -6,6 +6,8 @@ import type { Calendar, Era, EvraDoc, EvraEvent, Formats, LeapRule } from './typ
    Every label comes from an editable template; the tokens are listed in TOKENS. */
 
 export const uid = (): string => Math.random().toString(36).slice(2, 9);
+/** A year typed or read from a note that the date maths can use: a whole number within a billion of zero. */
+export const saneYear = (y: number): boolean => Number.isSafeInteger(y) && Math.abs(y) <= 1e9;
 export const clamp = (v: number, a: number, b: number): number => Math.max(a, Math.min(b, v));
 export const cap = (s: string): string => (s ? s[0].toUpperCase() + s.slice(1) : '');
 /** Any plain value as text; objects become empty. */
@@ -80,16 +82,18 @@ export type Engine = ReturnType<typeof makeEngine>;
 
 /** Every date function, reading the calendar, eras and formats of whatever document getDoc returns. */
 export function makeEngine(getDoc: () => EvraDoc) {
-	// Facts about the document's calendar are computed once. Anything that edits the months or leap rules calls reset().
-	let CI: CalInfo = null, ciCal: Calendar = null;
+	// Facts about each calendar (the document's, or an old copy being remapped) are computed once per calendar object.
+	// Anything that edits the months or leap rules in place calls reset().
+	let infoCache = new WeakMap<Calendar, CalInfo>(), CI: CalInfo = null, ciCal: Calendar = null;
 	const S = () => getDoc();
 	const ci = (cal: Calendar = S().cal): CalInfo => {
 		if (CI && cal === ciCal) return CI;
-		const r = calInfo(cal);
-		if (cal === S().cal) { CI = r; ciCal = cal; }
+		let r = infoCache.get(cal);
+		if (!r) { r = calInfo(cal); infoCache.set(cal, r); }
+		CI = r; ciCal = cal;
 		return r;
 	};
-	const reset = () => { CI = null; ciCal = null; };
+	const reset = () => { infoCache = new WeakMap(); CI = null; ciCal = null; };
 	function yearStartC(y: number, cal: Calendar = S().cal): number {
 		const c = ci(cal);
 		if (!c.leaps.length) return y * c.Y;
@@ -115,8 +119,12 @@ export function makeEngine(getDoc: () => EvraDoc) {
 	function yearOfC(t: number, cal: Calendar = S().cal): number {
 		const c = ci(cal);
 		let y = Math.floor(t / c.Yavg);
-		while (yearStartC(y, cal) > t) y--;
-		while (yearStartC(y + 1, cal) <= t) y++;
+		if (!Number.isFinite(y)) return 0;
+		// Past 2^53, y + 1 === y and the loops below would never end; the first guess is as close as it gets.
+		// The guess is only ever a few years off, so the bounds are generous.
+		if (y + 1 === y || y - 1 === y) return y;
+		for (let g = 0; g < 1000 && yearStartC(y, cal) > t; g++) y--;
+		for (let g = 0; g < 1000 && yearStartC(y + 1, cal) <= t; g++) y++;
 		return y;
 	}
 	const yearStartT = (y: number) => yearStartC(y, S().cal);
@@ -216,15 +224,15 @@ export function makeEngine(getDoc: () => EvraDoc) {
 		if (sp.u === 'y') {
 			let y = Math.ceil(yearOf(t0) / sp.k) * sp.k;
 			if (yearStartT(y) < t0) y += sp.k;
-			for (; yearStartT(y) <= t1 && out.length < max; y += sp.k) out.push(yearStartT(y));
+			for (let g = 0; yearStartT(y) <= t1 && out.length < max && g < max; y += sp.k, g++) out.push(yearStartT(y));
 			return out;
 		}
-		for (let y = yearOf(t0); y <= yearOf(t1) && out.length < max; y++) {
+		for (let y = yearOf(t0), y1 = yearOf(t1), g = 0; y <= y1 && out.length < max && g < max; y++, g++) {
 			const lens = monthLens(y);
 			let base = yearStartT(y);
 			for (let m = 0; m < lens.length; base += lens[m], m++) {
 				if (sp.u === 'm') { if (m % sp.k === 0 && base >= t0 && base <= t1) out.push(base); continue; }
-				for (let d = 0; d < lens[m]; d += sp.k) { const t = base + d; if (t >= t0 && t <= t1) out.push(t); }
+				for (let d = 0; d < lens[m] && out.length < max; d += sp.k) { const t = base + d; if (t >= t0 && t <= t1) out.push(t); }
 			}
 		}
 		return out;
@@ -251,16 +259,30 @@ export function makeEngine(getDoc: () => EvraDoc) {
 		const f = (t: number) => {
 			const p = partsC(t, oldCal), om = oldCal.months[p.m];
 			const nm = idx.has(om.id) ? idx.get(om.id) : Math.min(p.m, newCal.months.length - 1);
-			return toT(p.yr, nm, Math.min(p.d, newCal.months[nm].days - 1), newCal);
+			return toT(p.yr, nm, p.d, newCal);
 		};
 		const d = S();
-		d.events.forEach((e) => { e.t = f(e.t); if (e.end != null) e.end = Math.max(e.t + 1, f(e.end)); });
+		d.events.forEach((e) => {
+			e.t = f(e.t);
+			if (e.end != null) e.end = Math.max(e.t + 1, f(e.end));
+			if (e.rel && e.rel.at != null) e.rel.at = f(e.rel.at); // where the anchor was last seen moves with it, or the pin would shift the card again
+		});
 		d.eras.forEach((e) => { e.start = f(e.start); e.end = Math.max(e.start + 1, f(e.end)); });
 	}
+	// Depths are cached against the eras array, its length and each era's id and parent (compared without allocating),
+	// so the many erasAt calls in one frame don't rebuild them. Treat the result as read-only.
+	let depCache: { eras: Era[]; ids: string[]; parents: string[]; d: Record<string, number> } = null;
 	function eraDepths(): Record<string, number> {
-		const by: Record<string, Era> = {}, d: Record<string, number> = {}, eras = S().eras;
+		const eras = S().eras, dc = depCache;
+		if (dc && dc.eras === eras && dc.ids.length === eras.length) {
+			let same = true;
+			for (let i = 0; i < eras.length && same; i++) same = eras[i].id === dc.ids[i] && (eras[i].parent || null) === dc.parents[i];
+			if (same) return dc.d;
+		}
+		const by: Record<string, Era> = {}, d: Record<string, number> = {};
 		eras.forEach((e) => (by[e.id] = e));
 		eras.forEach((e) => { let k = 1, p = e, g = 0; while (p.parent && by[p.parent] && g++ < 64) { k++; p = by[p.parent]; } d[e.id] = k; });
+		depCache = { eras, ids: eras.map((e) => e.id), parents: eras.map((e) => e.parent || null), d };
 		return d;
 	}
 	/** Every era a moment falls in, outermost first. */
@@ -283,8 +305,9 @@ export function makeEngine(getDoc: () => EvraDoc) {
 			if (m < 0 && (q.includes(n) || (n.length > 3 && new RegExp('\\b' + n.slice(0, 3).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).test(q)))) m = i;
 		});
 		let y: number, d = 0;
-		if (m >= 0 && nums.length >= 2) { d = Math.max(0, Math.min(nums[0], c.months[m].days) - 1); y = nums[nums.length - 1]; }
+		if (m >= 0 && nums.length >= 2) { d = Math.max(0, nums[0] - 1); y = nums[nums.length - 1]; }
 		else y = nums[nums.length - 1];
+		if (!saneYear(y)) return null;
 		if (neg) y = -y;
 		return toT(y - c.yearStart, Math.max(0, m), d);
 	}

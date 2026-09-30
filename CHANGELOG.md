@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.7.0 (beta)
+
+- Timeline files are checked thoroughly as they open. Hand-edited or damaged files with wrong-typed fields, reversed dates, missing or looping era parents, or absurd numbers now open cleanly instead of failing or freezing Obsidian (a date like 1e20 used to hang it). Unknown fields are kept.
+- Fixed: 29 February (and any leap day) slipped to the 28th after a calendar edit, when a synced note changed, or when typed into a date field.
+- Absurd years typed into search or read from notes are ignored.
+- Calendar changes keep pinned cards on their dates.
+- Faster calendar edits and era lookups on large timelines.
+- New unit tests for leap days and file checking (129 in all).
+
 ## 0.6.8 (beta)
 
 - Timelines in notes: never drawn twice when saves come quickly, redrawn only when their own timeline changes, follow a renamed timeline, and ignore `from:`/`to:` values that aren't numbers.

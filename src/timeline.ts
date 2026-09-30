@@ -2463,7 +2463,7 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 	function readDate(p: HTMLElement, key: string): number | null {
 		const y = parseInt(q1<HTMLInputElement>(p, `[data-d="${key}Y"]`).value, 10), ms = q1<HTMLSelectElement>(p, `[data-d="${key}M"]`), m = ms ? +ms.value : 0;
 		const d = Math.max(1, parseInt(q1<HTMLInputElement>(p, `[data-d="${key}D"]`).value, 10) || 1);
-		return isNaN(y) ? null : toT(y - S.cal.yearStart, m, Math.min(d, S.cal.months[m].days) - 1);
+		return isNaN(y) || Math.abs(y) > 1e9 ? null : toT(y - S.cal.yearStart, m, d - 1); // toT clamps the day to that year's real month length (keeps leap days)
 	}
 	function openEraEditor(id: string, at: At) {
 		const e = eraById(id);
