@@ -113,3 +113,17 @@ test('R2B5 two panes on one file: an edit in one shows in the other at once, wit
 	const saved = await h.saved();
 	t.eq(saved.events.length, Number(a) + 1, 'both new cards saved');
 });
+test('R2B6 two panes on one file: after one saves, an outside change reaches both panes', async (p, h, t) => {
+	await h.open();
+	const pristine = await p.ev(`app.vault.adapter.read('Chronicle of Veld.evra')`);
+	await p.ev(`app.workspace.duplicateLeaf(app.workspace.activeLeaf, 'vertical').then(() => 1)`); await p.sleep(1000);
+	const L = 'app.workspace.getLeavesOfType("evra")', counts = () => p.ev(`${L}.map(l => l.view.timeline.getDoc().events.length).join()`);
+	await p.ev(`${L}[0].view.timeline.run('new-event')`); await p.sleep(100);
+	await p.key('Escape'); await p.sleep(2800);
+	const n = JSON.parse(await p.ev(`app.vault.adapter.read('Chronicle of Veld.evra')`)).events.length;
+	t.eq(await counts(), `${n},${n}`, 'both panes and the file agree after the save');
+	// the file goes back to its old text from outside: the pane that didn't save must follow too
+	await p.ev(`app.vault.modify(app.vault.getAbstractFileByPath('Chronicle of Veld.evra'), ${JSON.stringify('')} + ${JSON.stringify(pristine)}).then(() => 1)`); await p.sleep(1500);
+	const m = JSON.parse(pristine).events.length;
+	t.eq(await counts(), `${m},${m}`, 'both panes show the outside change');
+});

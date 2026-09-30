@@ -107,7 +107,12 @@ export class EvraView extends TextFileView {
 
 	async save(clear?: boolean): Promise<void> {
 		const p = super.save(clear);
-		if (typeof this.data === 'string' && this.broken == null) this.base = this.data; // set as the save starts
+		if (typeof this.data === 'string' && this.broken == null) {
+			this.base = this.data; // set as the save starts
+			// other panes on this file hold the same document (see shareDoc) but still think the file holds what they last
+			// loaded, so Obsidian would skip them when an outside change brings the file back to that text
+			for (const v of this.siblings()) { v.data = this.data; v.base = this.data; }
+		}
 		await p;
 	}
 
@@ -141,9 +146,12 @@ export class EvraView extends TextFileView {
 
 	/** Other panes showing the same file get each change at once, so neither drops the other's unsaved edits when the
 	    file is saved. Their own undo history is cleared, as it would be by an outside change. */
-	private shareDoc() {
-		const others = this.file && this.timeline ? this.app.workspace.getLeavesOfType(VIEW_TYPE).map((l) => l.view)
+	private siblings(): EvraView[] {
+		return this.file && this.timeline ? this.app.workspace.getLeavesOfType(VIEW_TYPE).map((l) => l.view)
 			.filter((v): v is EvraView => v instanceof EvraView && v !== this && v.file === this.file && !!v.timeline) : [];
+	}
+	private shareDoc() {
+		const others = this.siblings();
 		if (!others.length) return;
 		const json = JSON.stringify(this.timeline.getDoc());
 		for (const v of others) { v.timeline.setDoc(JSON.parse(json) as EvraDoc); v.updateUndo(); }

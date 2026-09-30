@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.8.28 (beta)
+
+- A second pane on the same timeline now follows outside changes after the other pane saved, instead of keeping cards that were removed on disk.
+
 ## 0.8.27 (beta)
 
 - Turning on note sync writes notes 16 at a time, so the first properties arrive in well under a second.
