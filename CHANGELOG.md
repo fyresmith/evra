@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.4.2 (beta)
+
+- The zoom and settings buttons, the year ruler, the era rail and messages now stay clear of Obsidian's status bar, which floats over the bottom right of the workspace.
+
 ## 0.4.1 (beta)
 
 - Light mode redesigned to match dark mode: cards read as colored tiles on a slightly deeper stage, with clear colored borders, the theme's full-strength colors (yellow deepened for contrast on white), crisper lines and a firmer card shadow.

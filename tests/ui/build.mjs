@@ -6,7 +6,7 @@ copyFileSync(`${OBS}/app.css`, 'test-dist/ui/app.css');
 copyFileSync(`${OBS}/enhance.js`, 'test-dist/ui/enhance.js');
 copyFileSync('styles.css', 'test-dist/ui/styles.css');
 for (const [theme, extra] of [['light', ''], ['dark', ''], ['light', 'aerth'], ['dark', 'aerth']]) writeFileSync(`test-dist/ui/${theme}${extra ? '-' + extra : ''}.html`, `<!doctype html><html><head><meta charset="utf-8"><link rel="stylesheet" href="app.css"><link rel="stylesheet" href="styles.css"><style>html,body{height:100%;margin:0}.workspace-leaf-content{position:absolute;inset:0;display:flex;flex-direction:column}.view-content{flex:1;height:100%}</style></head>
-<body class="theme-${theme} mod-linux is-frameless"><div class="workspace-leaf-content"><div class="view-content"></div></div><script src="enhance.js"></script>${extra ? `<script src="${extra}.js"></script>` : ''}<script src="harness.js"></script></body></html>`);
+<body class="theme-${theme} mod-linux is-frameless"><div class="app-container"><div class="workspace-leaf-content"><div class="view-content"></div></div></div><div class="status-bar"><div class="status-bar-item">0 backlinks</div><div class="status-bar-item">862 words</div></div><script src="enhance.js"></script>${extra ? `<script src="${extra}.js"></script>` : ''}<script src="harness.js"></script></body></html>`);
 
 // the large example world, when it has been generated (npm run big-world)
 const W = 'test-vault/Aerth';

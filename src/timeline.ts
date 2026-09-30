@@ -30,7 +30,7 @@ export interface Timeline {
 	destroy(): void;
 }
 
-interface Geo { W: number; H: number; vert: boolean; rev: boolean; L: number; C: number; cx: number; ext?: { a: number; b: number } }
+interface Geo { W: number; H: number; vert: boolean; rev: boolean; L: number; C: number; cx: number; inb: number; ext?: { a: number; b: number } }
 interface Item {
 	ev: EvraEvent; side: Side; group?: boolean; gid?: string; year?: number; members?: EvraEvent[]; span?: boolean;
 	a: number; b?: number; lo: number; hi: number; ra?: number; rb?: number; along?: number; len?: number; cr?: number; cOff?: number; pos?: number; offP?: number;
@@ -235,17 +235,25 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 
 	/* ---------- geometry ---------- */
 	function geo(): Geo {
-		if (!stageSize) stageSize = { w: stage.clientWidth, h: stage.clientHeight };
+		if (!stageSize) { stageSize = { w: stage.clientWidth, h: stage.clientHeight }; bottomInset = statusBarOverlap(); root.style.setProperty('--evra-inset', bottomInset + 'px'); }
 		const W = stageSize.w, H = stageSize.h, o = S.orientation || 'ttb';
 		const vert = o === 'ttb' || o === 'btt', rev = o === 'btt' || o === 'rtl';
-		return { W, H, vert, rev, L: vert ? H : W, C: vert ? W : H, cx: (vert ? W : H) / 2 };
+		return { W, H, vert, rev, L: vert ? H : W, C: vert ? W : H, cx: (vert ? W : H) / 2, inb: bottomInset };
 	}
 	const P = (t: number) => (t - V.v0) * V.scale;
 	const Sx = (p: number) => (G.rev ? G.L - p : p);
 	const ts = (t: number) => Sx(P(t));
 	const tAt = (s: number) => V.v0 + (G.rev ? G.L - s : s) / V.scale;
 	const xy = (s: number, c: number): [number, number] => (G.vert ? [G.cx + c, s] : [s, G.cx + c]); // G.cx already includes the cross-axis scroll
-	let stageRect: DOMRect = null, stageSize: { w: number; h: number } = null;
+	let stageRect: DOMRect = null, stageSize: { w: number; h: number } = null, bottomInset = 0;
+	// Obsidian's status bar floats over the bottom right of the workspace; anything anchored to the bottom stays clear of it
+	function statusBarOverlap(): number {
+		const bar = doc().body.querySelector<HTMLElement>('.status-bar');
+		if (!bar || !bar.offsetParent) return 0;
+		const b = bar.getBoundingClientRect(), r = stage.getBoundingClientRect();
+		const overlaps = b.height > 0 && b.left < r.right && b.right > r.left && b.top < r.bottom && b.bottom > r.bottom - 80;
+		return overlaps ? Math.ceil(r.bottom - b.top) + 2 : 0;
+	}
 	const rectOf = () => stageRect || (stageRect = stage.getBoundingClientRect());
 	function local(e: { clientX: number; clientY: number }): Local {
 		const r = rectOf(), x = e.clientX - r.left, y = e.clientY - r.top;
@@ -622,7 +630,7 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 		for (const t of majors) {
 			const s = ts(t);
 			out.push(seg(s, -5, s, 5, 'stroke:var(--evra-faint);stroke-width:1.2'));
-			guides.push(G.vert ? svgEl('line', { x1: RULER, y1: rd(s), x2: G.W, y2: rd(s) }, 'stroke:var(--evra-guide);stroke-width:1') : svgEl('line', { x1: rd(s), y1: 0, x2: rd(s), y2: G.H - 26 }, 'stroke:var(--evra-guide);stroke-width:1'));
+			guides.push(G.vert ? svgEl('line', { x1: RULER, y1: rd(s), x2: G.W, y2: rd(s) }, 'stroke:var(--evra-guide);stroke-width:1') : svgEl('line', { x1: rd(s), y1: 0, x2: rd(s), y2: G.H - 26 - G.inb }, 'stroke:var(--evra-guide);stroke-width:1'));
 			F.ticks.push({ s, label: E.tickLabel(t) });
 		}
 		out.splice(gridAt, 0, ...guides);
@@ -651,7 +659,7 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 			const lo = cS(Math.min(a, b)), hi = cS(Math.max(a, b)), k = dep[e.id] - 1;
 			const bar = G.vert
 				? svgEl('rect', { 'data-era': e.id, x: RULER + 3 + k * 7, y: rd(lo + 1), width: 5, height: rd(Math.max(2, hi - lo - 2)), rx: 2.5 }, `fill:${col(e.color)};opacity:.75;cursor:pointer`)
-				: svgEl('rect', { 'data-era': e.id, x: rd(lo + 1), y: G.H - 34 - k * 7, width: rd(Math.max(2, hi - lo - 2)), height: 5, rx: 2.5 }, `fill:${col(e.color)};opacity:.75;cursor:pointer`);
+				: svgEl('rect', { 'data-era': e.id, x: rd(lo + 1), y: G.H - 34 - G.inb - k * 7, width: rd(Math.max(2, hi - lo - 2)), height: 5, rx: 2.5 }, `fill:${col(e.color)};opacity:.75;cursor:pointer`);
 			const title = svgEl('title', {});
 			title.textContent = e.name;
 			bar.appendChild(title);
@@ -918,7 +926,7 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 		(Array.from(box.children) as HTMLElement[]).forEach((el, i) => {
 			const t = list[i], sg = t.side === 'a' ? -1 : 1, w = tagWidths[i] || 0, h = 22, lane = G.cx + sg * t.c;
 			let x: number, y: number;
-			if (G.vert) { x = t.side === 'a' ? lane - w + 6 : lane - 6; y = G.rev ? G.H - 34 - t.k * 26 : 12 + t.k * 26; }
+			if (G.vert) { x = t.side === 'a' ? lane - w + 6 : lane - 6; y = G.rev ? G.H - G.inb - 34 - t.k * 26 : 12 + t.k * 26; }
 			else { x = G.rev ? G.W - w - 12 : 12; y = t.side === 'a' ? lane - h + 6 - t.k * 26 : lane - 6 + t.k * 26; }
 			el.setCssStyles({ left: rd(x) + 'px', top: rd(y) + 'px' });
 			el.toggleClass('hl', hoverId === t.ev.id || sel === t.ev.id);
@@ -944,7 +952,7 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 			if (el.textContent !== t.name) el.textContent = t.name;
 			const d = G.rev ? -1 : 1;
 			if (G.vert) el.setCssStyles({ left: RULER + 6 + (F.railW || 0) + 'px', top: rd(t.s + d * (6 + t.lead) - (G.rev ? 20 : 0)) + 'px', bottom: '', transform: '' });
-			else el.setCssStyles({ left: rd(t.s + (G.rev ? -6 : 6)) + 'px', transform: G.rev ? 'translateX(-100%)' : '', top: '', bottom: 44 + (F.railW || 0) + t.lead + 'px' });
+			else el.setCssStyles({ left: rd(t.s + (G.rev ? -6 : 6)) + 'px', transform: G.rev ? 'translateX(-100%)' : '', top: '', bottom: 44 + G.inb + (F.railW || 0) + t.lead + 'px' });
 		});
 	}
 	$('eraLabels').addEventListener('click', (e) => {
@@ -974,7 +982,7 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 		const box2 = $('ruler2'), list2 = (F.ticks2 || []).filter((t) => t.s > 20 && t.s < G.L - 20);
 		box2.hidden = !list2.length; box2.className = 'ui ruler r2 ' + (G.vert ? 'rv' : 'rh'); box2.title = sec().name;
 		renderRulerSpans(box2, list2);
-		const box = $('ruler'), ticks = (F.ticks || []).filter((t) => (G.vert ? t.s > (G.rev ? 10 : 50) && t.s < G.H - (G.rev ? 50 : 10) : t.s > 20 && t.s < G.W - 60));
+		const box = $('ruler'), ticks = (F.ticks || []).filter((t) => (G.vert ? t.s > (G.rev ? 10 : 50) && t.s < G.H - G.inb - (G.rev ? 50 : 10) : t.s > 20 && t.s < G.W - 60));
 		box.className = 'ui ruler ' + (G.vert ? 'rv' : 'rh');
 		renderRulerSpans(box, ticks);
 	}
@@ -1003,7 +1011,7 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 	}
 	function renderOverlay(dep: Record<string, number>, R0: number, R1: number) {
 		renderNow(); renderMinimap(); renderRuler(); renderEraLabels(); renderBundles(); renderFilterPill();
-		$('hint').setCssStyles({ bottom: G.vert ? '' : '36px' }); // clear the ruler along the bottom
+		$('hint').setCssStyles({ bottom: G.vert ? '' : 36 + G.inb + 'px' }); // clear the ruler along the bottom
 		renderTags();
 		const tc = tAt(G.L / 2), path = S.eras.filter((e) => e.start <= tc && e.end > tc).sort((a, b) => dep[a.id] - dep[b.id]);
 		const key = path.map((e) => e.id + e.name).join('|');

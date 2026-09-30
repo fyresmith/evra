@@ -249,7 +249,7 @@
 .evra-root.evra-view .xbar.hz {
 	left:14px;
 	right:14px;
-	bottom:5px;
+	bottom:calc(5px + var(--evra-inset, 0px));
 	height:5px
 }
 .evra-root.evra-view .xbar.vt {
@@ -1339,7 +1339,7 @@
 	top:8px
 }
 .evra-root.evra-view .ruler.rh span {
-	bottom:6px;
+	bottom:calc(6px + var(--evra-inset, 0px));
 	transform:translateX(-50%)
 }
 .evra-root.evra-view .tags {
@@ -1573,7 +1573,7 @@
 }
 .evra-root.evra-view .ctrls {
 	right:12px;
-	bottom:12px;
+	bottom:calc(12px + var(--evra-inset, 0px));
 	display:flex;
 	flex-direction:column;
 	gap:2px;
@@ -1591,7 +1591,7 @@
 }
 .evra-root.evra-view .hint {
 	left:12px;
-	bottom:12px;
+	bottom:calc(12px + var(--evra-inset, 0px));
 	font-size:12px;
 	color:var(--evra-muted);
 	padding:6px 10px;
@@ -1644,7 +1644,7 @@
 }
 .evra-root.evra-view .toast {
 	left:50%;
-	bottom:18px;
+	bottom:calc(18px + var(--evra-inset, 0px));
 	transform:translateX(-50%);
 	display:flex;
 	align-items:center;
