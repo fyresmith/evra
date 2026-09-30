@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.8.18 (beta)
+
+- On touch screens, pressing and holding a card opens its menu (a shorter hold still picks it up to drag).
+
 ## 0.8.17 (beta)
 
 - Copied cards can be pasted into another timeline; colors it doesn't have are dropped.

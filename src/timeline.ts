@@ -1469,7 +1469,15 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 			const together = selIds().length > 1 ? selIds().map((x) => ({ id: x, t: evById(x).t, end: evById(x).end, relAt: evById(x).rel?.at })) : null;
 			const el0 = elLeftTop(ce, L);
 			drag = { type: 'card', id, together, start: L, el0, free: { ...el0 }, before: null, orig: { t: ev.t, end: ev.end, side: ev.side }, moved: false, armed: e.pointerType !== 'touch' };
-			if (!drag.armed) drag.timer = later(() => { if (drag && drag.type === 'card' && !drag.moved) { drag.armed = true; if (ce) ce.addClass('dragging'); } }, 260);
+			if (!drag.armed) {
+				const tgt = e.target, d0 = drag;
+				// touch: a short hold picks the card up to drag; holding on without moving opens its menu, like the right-click
+				drag.timer = later(() => {
+					if (drag !== d0 || drag.moved) return;
+					drag.armed = true; if (ce) ce.addClass('dragging');
+					drag.timer = later(() => { if (drag === d0 && !drag.moved) { if (ce) ce.removeClass('dragging'); drag = null; openContextAt(L, tgt); } }, 290);
+				}, 260);
+			}
 			capture(e.pointerId);
 			return;
 		}
