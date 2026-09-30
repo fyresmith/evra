@@ -943,8 +943,10 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 				el = cardsLayer.createDiv();
 				el.dataset.id = id; el.tabIndex = 0; el.setAttribute('role', 'button');
 				cardEls.set(id, el);
+				// Tab onto a card selects it; a click focuses it too, but the pointer handlers already chose the selection (shift-click
+				// taking it out, right-click on a multi-selection), so focus from a pointer leaves it alone
 				el.addEventListener('focus', () => {
-					if (!id.startsWith('g:') && sel !== id && !drag && evById(id)) { setSel([id]); const s = ts(evById(id).t); if (s < 40 || s > G.L - 40) animView(evById(id).t, V.scale); }
+					if (!id.startsWith('g:') && sel !== id && !drag && evById(id) && !isSel(id) && win().performance.now() - ptrAt > 400) { setSel([id]); const s = ts(evById(id).t); if (s < 40 || s > G.L - 40) animView(evById(id).t, V.scale); }
 				});
 				if (fresh.has(id)) later(() => { fresh.delete(id); invalidate(); }, 320);
 			}
@@ -1148,6 +1150,8 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 		return [...selSet].filter((id) => evById(id));
 	}
 	function setSel(ids: string[]) { selSet.clear(); ids.forEach((id) => selSet.add(id)); sel = ids.length ? ids[ids.length - 1] : null; invalidate(); }
+	let ptrAt = -1e9; // when a pointer last went down in the timeline (the window's clock, as event time stamps are)
+	root.addEventListener('pointerdown', (e) => { ptrAt = e.timeStamp; }, true);
 	const isSel = (id: string) => !!sel && (selSet.has(sel) ? selSet.has(id) : id === sel) && !!evById(id);
 	function selectAll() { setSel(S.events.map((e) => e.id)); toast(`${S.events.length} cards selected`); }
 	function deleteSel() {

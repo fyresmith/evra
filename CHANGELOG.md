@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.8.3 (beta)
+
+- Shift-clicking a selected card removes just that card, and right-clicking inside a selection opens the menu for all of it.
+
 ## 0.8.2 (beta)
 
 - Arrow keys in a card menu move past dropdowns instead of silently changing them.
