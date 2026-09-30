@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.7.31 (beta)
+
+- New end-to-end tests: two timelines on one note, a note deleted while its timeline is closed, a 40-note folder move, and outside edits during unsaved changes.
+
 ## 0.7.30 (beta)
 
 - If the timeline's file changes on disk while you have unsaved edits, both sets of changes are kept (yours win where both changed the same thing).
