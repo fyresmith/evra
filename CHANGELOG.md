@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.6.8 (beta)
+
+- Timelines in notes: never drawn twice when saves come quickly, redrawn only when their own timeline changes, follow a renamed timeline, and ignore `from:`/`to:` values that aren't numbers.
+- A note edited while it was being read no longer leaves its card showing the old text.
+- Dropping text like [[100% done]] onto a timeline no longer fails.
+- Renaming a note checks closed timelines cheaply first, and keeps their synced-notes list up to date.
+
 ## 0.6.7 (beta)
 
 - Fixed: after deleting a clicked card, Ctrl/⌘ Z did nothing until you clicked the timeline again.

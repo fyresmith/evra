@@ -33,20 +33,30 @@ function findTimeline(plugin: EvraPlugin, name: string | undefined, sourcePath: 
 }
 
 class EmbedChild extends MarkdownRenderChild {
+	private gen = 0; // bumped by each render; an older render still waiting on a read gives up
+	private filePath: string | null = null; // the timeline this embed shows, resolved on each render
 	constructor(el: HTMLElement, private plugin: EvraPlugin, private src: string, private sourcePath: string) { super(el); }
 	onload() {
 		void this.render();
-		this.registerEvent(this.plugin.app.vault.on('modify', (f) => { if (f.path.endsWith('.evra')) void this.render(); }));
+		// only saves to the timeline shown here (or any timeline while none is found) redraw it
+		this.registerEvent(this.plugin.app.vault.on('modify', (f) => { if (f.path.endsWith('.evra') && (this.filePath == null || f.path === this.filePath)) void this.render(); }));
+		// a renamed timeline can change which file the embed's name points at, so resolve it again
+		this.registerEvent(this.plugin.app.vault.on('rename', (f, oldPath) => { if (f.path.endsWith('.evra') || oldPath.endsWith('.evra')) void this.render(); }));
 	}
 	async render() {
-		const el = this.containerEl, o = parseEmbed(this.src);
+		const gen = ++this.gen, el = this.containerEl, o = parseEmbed(this.src);
 		const file = findTimeline(this.plugin, o.timeline, this.sourcePath);
+		this.filePath = file ? file.path : null;
+		let doc: EvraDoc = null, failed = false;
+		if (file) {
+			try { doc = normDoc(JSON.parse(await this.plugin.app.vault.cachedRead(file)), file.basename); }
+			catch { failed = true; }
+		}
+		if (gen !== this.gen) return; // a newer render has taken over
 		el.empty();
 		el.addClass('evra-embed');
 		if (!file) { el.createDiv({ cls: 'eh', text: o.timeline ? `No timeline called “${o.timeline}”.` : 'No timelines in this vault yet.' }); return; }
-		let doc: EvraDoc;
-		try { doc = normDoc(JSON.parse(await this.plugin.app.vault.cachedRead(file)), file.basename); }
-		catch { el.createDiv({ cls: 'eh', text: `“${file.basename}” couldn’t be read.` }); return; }
+		if (failed) { el.createDiv({ cls: 'eh', text: `“${file.basename}” couldn’t be read.` }); return; }
 		drawEmbed(el, doc, o, (id) => {
 			void this.plugin.app.workspace.getLeaf(false).openFile(file, { eState: { evraFocus: id } });
 		}, (link) => this.plugin.app.metadataCache.getFirstLinkpathDest(link, file.path)?.basename || link.split('/').pop());
@@ -58,8 +68,10 @@ export function drawEmbed(el: HTMLElement, doc: EvraDoc, o: Record<string, strin
 	const col = (c: string | null) => { const p = c && doc.palette.find((x) => x.id === c); return p ? p.hex || `var(--evra-c${p.id})` : 'var(--evra-muted)'; };
 	let a = E.yearStartT(doc.range[0]), b = E.yearStartT(doc.range[1]), title = doc.name;
 	if (o.era) { const e = doc.eras.find((x) => x.name.toLowerCase() === o.era.toLowerCase()); if (e) { a = e.start; b = e.end; title = e.name; } }
-	if (o.from) a = E.toT(parseInt(o.from, 10) - doc.cal.yearStart, 0, 0);
-	if (o.to) b = E.toT(parseInt(o.to, 10) - doc.cal.yearStart, 0, 0);
+	// from:/to: that aren't years are ignored rather than giving an empty, NaN range
+	const from = o.from ? parseInt(o.from, 10) : NaN, to = o.to ? parseInt(o.to, 10) : NaN;
+	if (Number.isFinite(from)) a = E.toT(from - doc.cal.yearStart, 0, 0);
+	if (Number.isFinite(to)) b = E.toT(to - doc.cal.yearStart, 0, 0);
 	const tag = o.tag ? o.tag.replace(/^#/, '') : '';
 	const evs = doc.events.filter((e) => (e.end != null ? e.end : e.t) >= a && e.t <= b && (!tag || (e.tags || []).includes(tag))).sort((x, y) => x.t - y.t);
 	const W = 600, H = 58, X = (t: number) => 12 + ((t - a) / Math.max(1, b - a)) * (W - 24), rd = (v: number) => Math.round(v * 10) / 10;

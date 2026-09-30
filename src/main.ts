@@ -81,10 +81,15 @@ export default class EvraPlugin extends Plugin {
 		this.notes.renamed(oldPath);
 		const open = new Set<string>();
 		this.forEachView((v) => { if (v.file) open.add(v.file.path); v.noteRenamed(file, oldPath); });
+		// every link to the note, and its path in the synced-notes list, contains its old name; as JSON it may be escaped
+		const base = oldPath.split('/').pop().replace(/\.md$/, ''), needles = [base, JSON.stringify(base).slice(1, -1)];
 		for (const f of this.app.vault.getFiles()) {
 			if (f.extension !== 'evra' || open.has(f.path)) continue;
+			let text: string;
+			try { text = await this.app.vault.cachedRead(f); } catch { continue; }
+			if (!needles.some((n) => text.includes(n))) continue; // skip the read-and-parse for timelines that can't mention it
 			await this.app.vault.process(f, (data) => {
-				let doc: { events?: { file?: string | null }[] };
+				let doc: { events?: { file?: string | null }[]; opts?: { sync?: { notes?: string[] } } };
 				try { doc = JSON.parse(data) as typeof doc; } catch { return data; }
 				let changed = false;
 				(doc.events || []).forEach((e) => {
@@ -92,6 +97,9 @@ export default class EvraPlugin extends Plugin {
 					const now = this.app.metadataCache.getFirstLinkpathDest(e.file, f.path), link = this.app.metadataCache.fileToLinktext(file, f.path, true);
 					if ((!now || now === file) && e.file !== link) { e.file = link; changed = true; }
 				});
+				// as the open view does: the list of notes carrying synced properties follows the rename
+				const sn = doc.opts && doc.opts.sync && doc.opts.sync.notes;
+				if (Array.isArray(sn) && sn.includes(oldPath)) { doc.opts.sync.notes = sn.map((p) => (p === oldPath ? file.path : p)); changed = true; }
 				return changed ? JSON.stringify(doc, null, '\t') : data;
 			});
 		}
@@ -122,9 +130,14 @@ export default class EvraPlugin extends Plugin {
 		const txt = e.dataTransfer ? e.dataTransfer.getData('text/plain') : '';
 		const out: TFile[] = [];
 		for (const line of txt.split(/\r?\n/)) {
-			const link = /\[\[([^\]|#]+)/.exec(line)?.[1] || /[?&]file=([^&]+)/.exec(line)?.[1];
+			// only the obsidian:// ?file= value is URL-encoded; a wikilink like [[100% done]] is taken as written
+			let link = /\[\[([^\]|#]+)/.exec(line)?.[1];
+			if (!link) {
+				const enc = /[?&]file=([^&]+)/.exec(line)?.[1];
+				if (enc) try { link = decodeURIComponent(enc); } catch { link = enc; }
+			}
 			if (!link) continue;
-			const f = this.app.metadataCache.getFirstLinkpathDest(decodeURIComponent(link), '');
+			const f = this.app.metadataCache.getFirstLinkpathDest(link, '');
 			if (md(f)) out.push(f);
 		}
 		return out;

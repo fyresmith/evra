@@ -7,6 +7,7 @@ export class NoteCache {
 	private texts = new Map<string, string>();
 	private stamps = new Map<string, number>();
 	private loading = new Set<string>();
+	private gens = new Map<string, number>(); // bumped when a note changes, so a read that started before is thrown away
 	private counter = 0;
 
 	constructor(private app: App, private onLoaded: () => void) {}
@@ -15,13 +16,15 @@ export class NoteCache {
 		const hit = this.texts.get(f.path);
 		if (hit != null) return hit;
 		if (!this.loading.has(f.path)) {
-			this.loading.add(f.path);
+			const path = f.path, gen = this.gens.get(path) ?? 0;
+			this.loading.add(path);
 			this.app.vault.cachedRead(f).then((t) => {
-				this.loading.delete(f.path);
-				this.texts.set(f.path, t);
-				this.stamps.set(f.path, ++this.counter);
+				if ((this.gens.get(path) ?? 0) !== gen) return; // the note changed while this read was in flight
+				this.loading.delete(path);
+				this.texts.set(path, t);
+				this.stamps.set(path, ++this.counter);
 				this.onLoaded();
-			}, () => this.loading.delete(f.path));
+			}, () => { if ((this.gens.get(path) ?? 0) === gen) this.loading.delete(path); });
 		}
 		return null;
 	}
@@ -30,6 +33,8 @@ export class NoteCache {
 
 	/** Forget a note so it is read again next time. */
 	changed(path: string): void {
+		this.gens.set(path, (this.gens.get(path) ?? 0) + 1);
+		this.loading.delete(path);
 		this.texts.delete(path);
 		this.stamps.set(path, ++this.counter);
 	}
