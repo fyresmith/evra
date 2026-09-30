@@ -24,11 +24,17 @@ jobs:
       - name: Check the tag matches manifest.json
         run: |
           test "$(node -p "require('./manifest.json').version")" = "${GITHUB_REF_NAME}"
-      - name: Create a draft release
+      # 1.x and later are normal releases, published as the latest; 0.x versions were betas, so they stay drafts marked as pre-releases
+      - name: Create the release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          flags="--draft"
-          case "${GITHUB_REF_NAME}" in 0.*) flags="$flags --prerelease";; esac
+          case "${GITHUB_REF_NAME}" in
+            0.*) flags="--draft --prerelease" ;;
+            *) flags="--latest" ;;
+          esac
+          # the notes are this version's section of CHANGELOG.md
+          awk -v v="## ${GITHUB_REF_NAME}" '$0 == v || index($0, v " ") == 1 { f = 1; next } /^## / { if (f) exit } f' CHANGELOG.md > notes.md
+          [ -s notes.md ] || echo "See CHANGELOG.md for what's new." > notes.md
           gh release create "${GITHUB_REF_NAME}" main.js manifest.json styles.css \
-            $flags --title "${GITHUB_REF_NAME}" --notes "See CHANGELOG.md for what's new."
+            $flags --title "${GITHUB_REF_NAME}" --notes-file notes.md

@@ -85,7 +85,7 @@ To extract `app.css` and `enhance.js`, run `npx asar extract /usr/lib/obsidian/o
 1. Update `CHANGELOG.md`.
 2. Run `npm version patch` (or `minor` or `major`). This bumps `package.json`, `manifest.json` and `versions.json`.
 3. Push the commit and its tag: `git push && git push --tags`.
-4. The **Release** GitHub Action builds the plugin, then creates a draft release with `main.js`, `manifest.json` and `styles.css` attached. Publish the draft.
+4. The **Release** GitHub Action checks and builds the plugin, then publishes a release with `main.js`, `manifest.json` and `styles.css` attached, using that version's section of `CHANGELOG.md` as its notes. (A `0.x` tag, from before 1.0, makes a draft pre-release instead.)
 
 The release tag must match the version in `manifest.json` exactly, with no `v` prefix. `npm version` is set up to create tags that way (see `.npmrc`).
 
@@ -93,18 +93,12 @@ The release tag must match the version in `manifest.json` exactly, with no `v` p
 
 Obsidian's docs describe the full process: <https://docs.obsidian.md/Plugins/Releasing/Submit+your+plugin>. In short:
 
-1. Publish a GitHub release as described above.
-2. Fork `obsidianmd/obsidian-releases` and add this entry to the end of `community-plugins.json`:
-   ```json
-   {
-     "id": "evra",
-     "name": "Evra",
-     "author": "Caleb Smith",
-     "description": "Worldbuilding timelines with custom calendars, nested eras, story threads and linked notes.",
-     "repo": "fyresmith/evra"
-   }
-   ```
-3. Open a pull request and fill in the checklist. A review bot runs the same lint rules as `npm run lint`.
+1. Make sure the repository is public, with `README.md`, `LICENSE` and `manifest.json` at its root. The directory reads `manifest.json` from the default branch, so push it first.
+2. Publish a GitHub release as described above. Its tag must equal the manifest version, and it must have `main.js`, `manifest.json` and `styles.css` attached.
+3. Sign in at <https://community.obsidian.md> with an Obsidian account, link the GitHub account that owns the repository, and add the plugin to the directory.
+4. An automated review runs the same kinds of checks as `npm run lint`. To address its feedback, fix the issue and publish a new release with a higher version.
+
+The plugin's id (`evra`) must stay unique and can't contain "obsidian".
 
 ## Contributing
 

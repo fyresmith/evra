@@ -4,14 +4,12 @@
 Your own calendar · eras nested as deep as you like · stories as threads · cards linked to your notes</p>
 
 <p align="center">
-<img alt="Version" src="https://img.shields.io/badge/version-0.5.0_beta-7c5cff">
+<img alt="Version" src="https://img.shields.io/badge/version-1.0.0-7c5cff">
 <img alt="Obsidian" src="https://img.shields.io/badge/Obsidian-1.6%2B-483699">
 <img alt="License" src="https://img.shields.io/badge/license-MIT-3a9a5c">
 </p>
 
 <p align="center"><img src="docs/media/tour.gif" alt="Scrolling through a timeline in Evra" width="900"></p>
-
-> **Beta.** Evra is new, so expect rough edges. Back up your vault, and please [report problems](https://github.com/fyresmith/evra/issues).
 
 Most timeline tools assume our calendar and our kind of history. Evra is built for the ones you make up:
 - a calendar with thirteen moons and a festival week;
@@ -53,16 +51,17 @@ Each timeline is its own `.evra` file in your vault, and its cards can link to t
 
 ## Getting started
 
-Evra is in beta, so it isn't in Obsidian's community plugin list yet. Install it one of these ways:
+In Obsidian, open **Settings → Community plugins → Browse**, search for **Evra**, then choose **Install** and **Enable**.
 
-- **With BRAT (recommended):**
+Until Evra's listing in the community plugin directory is approved, install it one of these ways instead:
+
+- **With BRAT:**
   1. Install the [BRAT](https://github.com/TfTHacker/obsidian42-brat) plugin.
   2. Run **BRAT: Add a beta plugin for testing** and enter `fyresmith/evra`.
 - **By hand:**
-  1. Download `main.js`, `manifest.json` and `styles.css` from the [latest release](https://github.com/fyresmith/evra/releases).
+  1. Download `main.js`, `manifest.json` and `styles.css` from the [latest release](https://github.com/fyresmith/evra/releases/latest).
   2. Put them in `<your vault>/.obsidian/plugins/evra/`.
-
-Then turn Evra on in **Settings → Community plugins**.
+  3. Turn Evra on in **Settings → Community plugins**.
 
 **Your first timeline:**
 1. Click the Evra button in the ribbon, or run **Evra: New timeline** from the command palette. You can also right-click a folder and choose **New timeline**.
@@ -300,7 +299,7 @@ Every timeline command is also in Obsidian's command palette. None of them have 
 - **Defaults for new timelines**: save a calendar, formats and colors once, and every new timeline starts with them.
 - **Copy and paste** cards, keeping their spacing; paste lands at the pointer.
 - **Themes**: Evra takes its colors and fonts from your Obsidian theme, in light and dark.
-- **Touch**: pinch to zoom, and press and hold for the menu. (Mobile is the least-tested part of the beta.)
+- **Touch**: pinch to zoom, and press and hold for the menu. On narrow screens, vertical timelines put every card on one side of the line so none are cut off.
 
 ## Documentation
 

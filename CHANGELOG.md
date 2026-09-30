@@ -1,5 +1,20 @@
 # Changelog
 
+## 1.0.0
+
+Evra's first stable release. Everything from the beta is here, after two long rounds of testing: 574 end-to-end scenarios run in real Obsidian, each in the light and dark themes, and 205 unit tests.
+
+Highlights since the first beta (0.4.0):
+
+- **Phone and narrow panes**: vertical timelines put every card on one side of the line so none are cut off; era labels, the ruler, the minimap and menus make room; settings tabs wrap. Press and hold a card for its menu on touch screens.
+- **Safer files**: if a timeline changes on disk while you have unsaved edits (a sync client, another device, another pane), both sets of changes are kept. Two panes on the same timeline share every change at once. A briefly broken file never loses unsaved edits, and is never overwritten.
+- **Notes**: moving or renaming folders of linked notes updates every timeline in one save; two timelines can sync the same note without fighting; synced properties keep the note's own capitalisation; "Create cards from dated notes" ranks candidates, skips notes other timelines use, and scales to thousands of notes; embeds follow timelines being created, deleted and moved.
+- **Editing and the keyboard**: undo and redo finish half-done edits first and stay in order; Escape cancels drags and selection boxes; keys and commands pressed mid-drag are ignored; menus keep focus, trap Tab and skip dropdowns with the arrow keys; S, colors and nudges act on the whole selection; cards can be pasted from one timeline into another; Ctrl/⌘ Z works in checkboxes, sliders and dropdowns.
+- **Eras and calendars**: calendar changes keep eras nested and in order; era labels never overlap in any direction; eras and "go to" dates past the range widen it; leap days, negative years, huge numbers and malformed calendar imports are handled.
+- **Speed**: note changes in big vaults are handled in milliseconds, and text follows Obsidian's font size.
+
+See the entries below for every change.
+
 ## 0.8.34 (beta)
 
 - Fixes 0.8.28: a second pane that doesn't hold the same document still reloads when the other pane saves.
