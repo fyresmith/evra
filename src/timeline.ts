@@ -2716,7 +2716,9 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 		if (inPop) { // inside a menu: arrows and Tab cycle through its controls (focus stays trapped until it closes), and Escape closes it
 			if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); closePop(); return; }
 			const tag = (e.target as HTMLElement).tagName, fwd = e.key === 'ArrowDown' || e.key === 'Tab' && !e.shiftKey;
-			if ((e.key === 'ArrowDown' || e.key === 'ArrowUp') && tag !== 'SELECT' && tag !== 'TEXTAREA' || e.key === 'Tab' && !(e.ctrlKey || e.metaKey || e.altKey)) {
+			// a select is passed over too: left to itself, ArrowDown would change its value (pin a card, make its date approximate).
+			// Space or Alt+ArrowDown still opens it
+			if ((e.key === 'ArrowDown' || e.key === 'ArrowUp') && !e.altKey && tag !== 'TEXTAREA' || e.key === 'Tab' && !(e.ctrlKey || e.metaKey || e.altKey)) {
 				e.preventDefault(); e.stopPropagation();
 				const all = qa(pop, 'button:not([disabled]), input:not([disabled]), select, textarea, a[href], [tabindex]:not([tabindex="-1"])').filter((x) => x.getClientRects().length), i = all.indexOf(e.target as HTMLElement);
 				all[i < 0 ? (fwd ? 0 : all.length - 1) : (i + (fwd ? 1 : all.length - 1)) % all.length]?.focus();

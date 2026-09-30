@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.8.2 (beta)
+
+- Arrow keys in a card menu move past dropdowns instead of silently changing them.
+
 ## 0.8.1 (beta)
 
 - Undo and redo first save a card being edited, close an open editor and finish a settings field, so what you typed isn't lost and history stays in order.
