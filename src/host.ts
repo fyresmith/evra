@@ -27,7 +27,8 @@ export interface TimelineHost {
 	pickNote(onPick: (link: string) => void): void;
 	searchNotes(q: string, limit: number): { link: string; title: string }[];
 	/** Notes with properties that aren't on this timeline yet. */
-	candidateNotes(exclude: Set<string>): { link: string; title: string; props: Record<string, unknown> }[];
+	/** Dated-note candidates; near: in the timeline's folder or below; elsewhere: another timeline file links or syncs it. */
+	candidateNotes(exclude: Set<string>): { link: string; title: string; props: Record<string, unknown>; near?: boolean; elsewhere?: boolean }[];
 	linksFromDrop(e: DragEvent): string[];
 	/** Same note? Links may be written differently. */
 	sameNote(a: string, b: string): boolean;

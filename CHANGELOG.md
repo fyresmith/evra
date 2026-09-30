@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.8.16 (beta)
+
+- Create cards from notes lists notes in the timeline's folder first and leaves notes that another timeline links or syncs unticked.
+
 ## 0.8.15 (beta)
 
 - Create cards from notes leaves notes for other timelines unticked and adds a filter.

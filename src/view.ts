@@ -215,6 +215,26 @@ export class EvraView extends TextFileView {
 	private linkFor(f: TFile): string {
 		return this.app.metadataCache.fileToLinktext(f, this.file ? this.file.path : '', true);
 	}
+	// notes that other timeline files link or sync, so "create cards from notes" leaves them to those timelines; read at most every 5 s
+	private others = new Set<string>();
+	private othersAt = 0;
+	private refreshOthers() {
+		if (Date.now() - this.othersAt < 5000) return;
+		this.othersAt = Date.now();
+		const app = this.app, mine = this.file ? this.file.path : '';
+		void Promise.all(app.vault.getFiles().filter((f) => f.extension === 'evra' && f.path !== mine).map(async (f) => {
+			try {
+				const d = JSON.parse(await app.vault.cachedRead(f)) as Partial<EvraDoc>, out: string[] = [];
+				for (const e of Array.isArray(d.events) ? d.events : []) {
+					const n = e && typeof e.file === 'string' ? app.metadataCache.getFirstLinkpathDest(e.file.split(/[#|]/)[0], f.path) : null;
+					if (n) out.push(n.path);
+				}
+				const synced = d.opts?.sync?.notes;
+				if (Array.isArray(synced)) out.push(...synced.filter((p): p is string => typeof p === 'string'));
+				return out;
+			} catch { return []; } // an unreadable timeline claims nothing
+		})).then((r) => { this.others = new Set(r.flat()); });
+	}
 	private folder(): string {
 		return this.file && this.file.parent ? this.file.parent.path : '';
 	}
@@ -258,12 +278,13 @@ export class EvraView extends TextFileView {
 				return out;
 			},
 			candidateNotes: (exclude) => {
-				const taken = new Set([...exclude].map((l) => this.resolve(l)?.path).filter(Boolean));
-				const out: { link: string; title: string; props: Record<string, unknown> }[] = [];
+				const taken = new Set([...exclude].map((l) => this.resolve(l)?.path).filter(Boolean)), dir = this.folder();
+				this.refreshOthers();
+				const out: { link: string; title: string; props: Record<string, unknown>; near: boolean; elsewhere: boolean }[] = [];
 				for (const f of app.vault.getMarkdownFiles()) {
 					if (taken.has(f.path)) continue;
 					const fm = fmOf(f);
-					if (fm) out.push({ link: this.linkFor(f), title: f.basename, props: fm });
+					if (fm) out.push({ link: this.linkFor(f), title: f.basename, props: fm, near: !dir || f.path.startsWith(dir + '/'), elsewhere: this.others.has(f.path) });
 				}
 				return out;
 			},
