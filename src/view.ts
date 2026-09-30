@@ -20,6 +20,7 @@ export class EvraView extends TextFileView {
 	private undoBtn: HTMLElement;
 	private redoBtn: HTMLElement;
 	private syncT = 0;
+	private ownWrites = new Map<string, ReturnType<typeof desiredProps>>();
 
 	constructor(leaf: WorkspaceLeaf, private plugin: EvraPlugin) {
 		super(leaf);
@@ -254,7 +255,7 @@ export class EvraView extends TextFileView {
 		for (const [file, props] of writes) {
 			const fm = this.app.metadataCache.getFileCache(file)?.frontmatter as Record<string, unknown> | undefined;
 			if (!needsWrite(fm, props)) continue;
-			try { await this.app.fileManager.processFrontMatter(file, (m: Record<string, unknown>) => { applyProps(m, props); }); }
+			try { await this.app.fileManager.processFrontMatter(file, (m: Record<string, unknown>) => { applyProps(m, props); }); this.ownWrites.set(file.path, props); }
 			catch (err) { console.error('Evra: couldn’t update the properties of', file.path, err); }
 		}
 		const written = liveFields(doc).map((x) => x[1]), notes = [...byNote.keys()];
@@ -286,7 +287,13 @@ export class EvraView extends TextFileView {
 		if (!this.timeline) return;
 		const doc = this.timeline.getDoc();
 		const ev = doc.events.find((e) => e.file && this.resolve(e.file) === file);
-		if (ev) this.timeline.noteChanged(ev.file);
+		if (!ev) return;
+		// Evra's own property writes come back as metadata changes a moment later, by which time the card may have
+		// moved again: those must not move it back
+		const own = this.ownWrites.get(file.path), fm = this.app.metadataCache.getFileCache(file)?.frontmatter as Record<string, unknown> | undefined;
+		if (own && !needsWrite(fm, own)) { this.timeline.notesChanged(); return; }
+		this.ownWrites.delete(file.path);
+		this.timeline.noteChanged(ev.file);
 	}
 
 	/** A note was renamed or moved: point cards that linked to it at its new name. Returns true when something changed. */

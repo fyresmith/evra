@@ -155,7 +155,7 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 	const sheet = $('sheet'), sheetBody = $('sheetBody'), marqueeEl = $('marquee');
 	const win = () => root.win, doc = () => root.doc;
 	const raf = (f: FrameRequestCallback) => win().requestAnimationFrame(f);
-	const later = (f: () => void, ms: number) => window.setTimeout(f, ms);
+	const later = (f: () => void, ms: number) => win().setTimeout(f, ms); // the view's own window, so popouts clear the same timers
 	const REDUCED = () => win().matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 	// listeners on things outside the view, removed when it closes
@@ -2612,7 +2612,7 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 			if (started) go(); else raf(() => raf(go));
 		},
 		notesChanged() { invalidate(); },
-		noteChanged(link: string) { syncFromNote(link); invalidate(); },
+		noteChanged(link: string) { noteCache.delete(link); linkSets.delete(link); syncFromNote(link); invalidate(); },
 		cssChanged() { cssEpoch++; measureFont = ''; family = ''; serif = ''; measureCache.clear(); tagKey = ''; if (!sheet.hidden) renderSheet(); invalidate(); },
 		focus() { if (!root.contains(doc().activeElement)) stage.focus({ preventScroll: true }); },
 		flush() { if (editing) finishEdit(true); },

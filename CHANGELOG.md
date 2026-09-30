@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.6.3 (beta)
+
+- Fixed: with note sync on, moving a card twice in quick succession could move it back, when Evra's own property write came back as a note change.
+- Changed covers and links in a note now show on its card right away.
+- Timers belong to the timeline's own window, so popout windows behave.
+
 ## 0.6.2 (beta)
 
 - Fixed: closing a timeline (or switching its tab to another file) while editing a card lost what you'd typed. The edit is now saved first.
