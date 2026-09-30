@@ -109,9 +109,10 @@ export class EvraView extends TextFileView {
 		const p = super.save(clear);
 		if (typeof this.data === 'string' && this.broken == null) {
 			this.base = this.data; // set as the save starts
-			// other panes on this file hold the same document (see shareDoc) but still think the file holds what they last
-			// loaded, so Obsidian would skip them when an outside change brings the file back to that text
-			for (const v of this.siblings()) { v.data = this.data; v.base = this.data; }
+			// another pane on this file that holds the same document (see shareDoc) still thinks the file holds what it last
+			// loaded, so Obsidian would skip it when an outside change brings the file back to that text. A pane that differs
+			// is left alone, so the save reaches it as a change.
+			for (const v of this.siblings()) if (v.getViewData() === this.data) { v.data = this.data; v.base = this.data; }
 		}
 		await p;
 	}

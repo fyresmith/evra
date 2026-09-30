@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.8.34 (beta)
+
+- Fixes 0.8.28: a second pane that doesn't hold the same document still reloads when the other pane saves.
+
 ## 0.8.33 (beta)
 
 - An open menu is moved back on screen when the window or pane is resized.

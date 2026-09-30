@@ -119,7 +119,8 @@ test('R2B6 two panes on one file: after one saves, an outside change reaches bot
 	await p.ev(`app.workspace.duplicateLeaf(app.workspace.activeLeaf, 'vertical').then(() => 1)`); await p.sleep(1000);
 	const L = 'app.workspace.getLeavesOfType("evra")', counts = () => p.ev(`${L}.map(l => l.view.timeline.getDoc().events.length).join()`);
 	await p.ev(`${L}[0].view.timeline.run('new-event')`); await p.sleep(100);
-	await p.key('Escape'); await p.sleep(2800);
+	await p.key('Escape'); await p.sleep(300);
+	await p.ev(`${L}[0].view.save().then(() => 1)`); await p.sleep(800);
 	const n = JSON.parse(await p.ev(`app.vault.adapter.read('Chronicle of Veld.evra')`)).events.length;
 	t.eq(await counts(), `${n},${n}`, 'both panes and the file agree after the save');
 	// the file goes back to its old text from outside: the pane that didn't save must follow too
