@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.5
+
+- The README's privacy section explains when Evra lists vault files and that it only ever writes to the clipboard.
+
 ## 1.0.4
 
 - Each release's main.js, manifest.json and styles.css come with a GitHub build attestation, and the release notes cover every change since the previous release.

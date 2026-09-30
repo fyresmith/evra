@@ -322,7 +322,13 @@ Ideas and requests are welcome in [issues](https://github.com/fyresmith/evra/iss
 
 ## Privacy and your files
 
-- **Offline:** Evra works entirely offline. It makes no network requests and collects nothing.
+- **Offline:** Evra works entirely offline. It makes no network requests of its own and collects nothing. (A card's cover image can be a web address you give it; Obsidian loads that like any image in a note.)
+- **Which files it looks at:** Evra lists the files in your vault, on your device only, to:
+  - find your timelines (for embeds, and to update closed timelines when a linked note is renamed);
+  - suggest notes when you link a card, or look for dated notes when you ask it to create cards from them.
+
+  It reads a note's properties and opening lines only for notes a timeline links to, or that you are choosing from.
+- **Clipboard:** Evra only writes to the clipboard, when you copy cards or export a table, an outline or an embed. It never reads the clipboard; pasting cards uses Evra's own copy buffer.
 - **Your timelines:** each one is a readable JSON file (`.evra`) in your vault. Evra changes it when you edit that timeline, or when a note it links to is renamed, so the link keeps working.
 - **Your notes:** Evra changes a note in two cases only: when you turn on note sync for a timeline that links to it, or when you ask Evra to create a note.
 
