@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.7.32 (beta)
+
+- A negative-year word such as “BE” is only matched as a whole word, so months like September or Ember no longer make a year negative.
+
 ## 0.7.31 (beta)
 
 - New end-to-end tests: two timelines on one note, a note deleted while its timeline is closed, a 40-note folder move, and outside edits during unsaved changes.

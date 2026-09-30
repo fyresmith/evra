@@ -303,7 +303,8 @@ export function makeEngine(getDoc: () => EvraDoc) {
 			return toT(y - c.yearStart, mo, d);
 		}
 		const negWord = c.fmt.yearNeg ? /\{Y\}\s+(\S+)/.exec(c.fmt.yearNeg) : null;
-		const neg = /(^|\s)[-−]\s*\d/.test(q) || (negWord && q.includes((negWord[1] || '~~').toLowerCase()));
+		// the word as a whole token, so "BE" doesn't match inside "Ember" or "September"
+		const neg = /(^|\s)[-−]\s*\d/.test(q) || (!!negWord && new RegExp('(^|[\\s,])' + negWord[1].toLowerCase().replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '([\\s,.]|$)').test(q));
 		const nums = (q.match(/\d+/g) || []).map(Number);
 		if (!nums.length) return null;
 		let m = -1;

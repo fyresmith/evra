@@ -43,6 +43,13 @@ eq(E.fmtRange({ t: E.toT(30, 0, 0), end: E.toT(44, 0, 0) }), 'Year 30–44', 'wh
 eq(E.parseDateQuery('14 Frost 412'), E.toT(412, 9, 13), 'typed dates');
 eq(E.parseDateQuery('-30'), E.toT(-30, 0, 0), 'typed years before zero');
 ok(doc.events.some((e) => e.rel), 'the sample pins the Archive to the comet');
+// a negative-year word in the format counts only as a word of its own, not inside a month name
+const neg0 = doc.cal.fmt.yearNeg;
+doc.cal.fmt.yearNeg = '{Y} BE';
+eq(E.parseDateQuery('1 Ember 50'), E.toT(50, 6, 0), '"BE" inside "Ember" isn\'t the negative-year word');
+eq(E.parseDateQuery('5 BE'), E.toT(-5, 0, 0), '"5 BE" is before zero');
+eq(E.parseDateQuery('1 Ember 50 be'), E.toT(-50, 6, 0), 'lower case, after a date');
+doc.cal.fmt.yearNeg = neg0;
 
 // older files and hand-written calendars
 const old = normCal({ dpm: 30, mpy: 12, months: ['A', 'B'], prefix: 'Cycle' });
