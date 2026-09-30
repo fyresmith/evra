@@ -2628,7 +2628,8 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 	}
 
 	/* ---------- keyboard: only while the timeline has focus ---------- */
-	root.addEventListener('keydown', (e) => {
+	// root outlives this timeline (the view remounts into it when another file opens there), so the listener must go with it
+	const onKey = (e: KeyboardEvent) => {
 		if (!pal.hidden || e.defaultPrevented) return;
 		if (!pop.hidden && pop.contains(e.target as Node)) { // inside a menu: arrows move between its controls, and Escape closes it
 			if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); closePop(); return; }
@@ -2676,7 +2677,9 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 		const across: Record<string, Side> = G.vert ? { ArrowLeft: 'a', ArrowRight: 'b' } : { ArrowUp: 'a', ArrowDown: 'b' };
 		if (along[e.key]) { done(); nudgeSel(along[e.key] * (G.rev ? -1 : 1), e.altKey); }
 		else if (across[e.key]) { done(); const before = snapshot(); selIds().forEach((id) => (evById(id).side = across[e.key])); commit(before); }
-	});
+	};
+	root.addEventListener('keydown', onKey);
+	cleanups.push(() => root.removeEventListener('keydown', onKey));
 
 	/* ---------- start ---------- */
 	const ro = new ResizeObserver(() => { stageRect = null; stageSize = null; noAnim = true; invalidate(); });

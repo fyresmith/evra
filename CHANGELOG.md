@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.7.11 (beta)
+
+- After opening another timeline in the same tab, keys no longer reach the old one (which could add, delete or undo invisibly).
+
 ## 0.7.10 (beta)
 
 - More end-to-end tests of the settings panel: every control's undo, malformed calendar imports, huge numbers, and random input with the panel open.
