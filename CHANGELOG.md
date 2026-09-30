@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.1 (beta)
+
+- Evra's plugin settings are searchable in Obsidian's settings (1.13 and later), and the folder settings suggest folders. Older versions of Obsidian show them as before.
+
 ## 1.0.0
 
 Evra's first stable release. Everything from the beta is here, after two long rounds of testing: 574 end-to-end scenarios run in real Obsidian, each in the light and dark themes, and 205 unit tests.

@@ -1,6 +1,6 @@
 {
   "name": "evra",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Worldbuilding timelines for Obsidian: custom calendars, nested eras, span threads and linked notes.",
   "main": "main.js",
   "type": "module",
@@ -27,7 +27,6 @@
     "@types/node": "^22.0.0",
     "@typescript-eslint/eslint-plugin": "^8.0.0",
     "@typescript-eslint/parser": "^8.0.0",
-    "builtin-modules": "^4.0.0",
     "esbuild": "^0.25.0",
     "eslint": "^9.0.0",
     "eslint-plugin-obsidianmd": "^0.4.2",

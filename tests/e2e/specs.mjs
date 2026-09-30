@@ -590,3 +590,16 @@ test('Ctrl/Cmd D leaves the copy buffer alone', async (p, h, t) => {
 	const s = await h.stage(); await p.move(s.l + 200, s.t + 300); await p.key('v', 'ctrl'); await p.sleep(200);
 	t.eq((await h.events()).filter((e) => e.file === 'Treaty of Sallow').length, 2, 'paste still pastes what was copied');
 });
+test('plugin settings tab: drawn from definitions (Obsidian 1.13+), controls save', async (p, h, t) => {
+	await p.ev(`(() => { app.setting.open(); return 1; })()`); await p.sleep(1000);
+	await p.ev(`(() => { app.setting.openTabById('evra'); return 1; })()`); await p.sleep(600);
+	const C = `app.setting.activeTab.containerEl`;
+	try {
+		const txt = await p.ev(`${C}.innerText`);
+		t.ok(['Folder for new timelines', 'Folder for notes made from cards', 'Open linked notes', 'Starting settings', 'Sample timeline'].every((x) => txt.includes(x)), 'every setting shown');
+		await p.ev(`(() => { const s = ${C}.querySelector('select'); s.value = 'same'; s.dispatchEvent(new Event('change', {bubbles: true})); return 1; })()`); await p.sleep(300);
+		t.eq(await p.ev(`app.plugins.plugins.evra.settings.openNotesIn`), 'same', 'dropdown saves');
+		await p.ev(`(() => { const i = ${C}.querySelector('input'); i.value = '  Worlds  '; i.dispatchEvent(new Event('input', {bubbles: true})); i.dispatchEvent(new Event('change', {bubbles: true})); return 1; })()`); await p.sleep(700);
+		t.eq(await p.ev(`app.plugins.plugins.evra.settings.newFileFolder`), 'Worlds', 'folder saved, trimmed');
+	} finally { await p.ev(`(() => { app.setting.close(); return 1; })()`); }
+});
