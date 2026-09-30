@@ -1,7 +1,7 @@
 import { addIcon, normalizePath, Notice, Platform, Plugin, TFile, TFolder, type PaneType, type WorkspaceLeaf } from 'obsidian';
 import { TIMELINE_COMMANDS } from './commands';
 import { renderEmbed } from './embed';
-import { emptyDoc, SAMPLE_COVER, SAMPLE_NOTES, sampleDoc } from './model';
+import { checkFormat, emptyDoc, SAMPLE_COVER, SAMPLE_NOTES, sampleDoc } from './model';
 import { NoteCache } from './notes';
 import { DEFAULT_SETTINGS, EvraSettingTab, type EvraSettings } from './settings';
 import type { PropValue } from './sync';
@@ -114,12 +114,13 @@ export default class EvraPlugin extends Plugin {
 			if (!needles.some((n) => text.includes(n))) continue; // skip the read-and-parse for timelines that can't mention them
 			await this.app.vault.process(f, (data) => {
 				let doc: { events?: { file?: string | null }[]; opts?: { sync?: { notes?: string[] } } };
-				try { doc = JSON.parse(data) as typeof doc; } catch { return data; }
+				try { doc = JSON.parse(data) as typeof doc; checkFormat(doc); } catch { return data; } // unreadable, or from a newer Evra: leave it as it is
+				if (!doc || typeof doc !== 'object') return data;
 				let changed = false;
 				const here = dirOf(f.path);
 				for (const [file, oldPath] of batch) {
 					const link = this.app.metadataCache.fileToLinktext(file, f.path, true);
-					(doc.events || []).forEach((e) => {
+					(Array.isArray(doc.events) ? doc.events : []).forEach((e) => {
 						if (!e || !e.file || !linkMatchesPath(e.file, oldPath) || e.file === link) return;
 						// Did this link point at the moved note before the move? A link naming the full old path did. A shorter one
 						// (a bare name) may now resolve to another note with the same name; it only pointed at that other note

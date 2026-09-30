@@ -1,7 +1,7 @@
 import { Keymap, Notice, Scope, TextFileView, TFile, type WorkspaceLeaf, type ViewStateResult } from 'obsidian';
 import { makeEngine } from './engine';
 import type { TimelineHost } from './host';
-import { emptyDoc, mergeDocs, normDoc } from './model';
+import { emptyDoc, mergeDocs, normDoc, UnsupportedFile } from './model';
 import { applyProps, desiredProps, liveFields, needsWrite } from './sync';
 import { mountTimeline, type Timeline, type ViewState } from './timeline';
 import type EvraPlugin from './main';
@@ -61,7 +61,7 @@ export class EvraView extends TextFileView {
 			try {
 				doc = normDoc(JSON.parse(data), name);
 				this.broken = null;
-			} catch {
+			} catch (e) {
 				// Unsaved changes here are kept aside (never written over the broken file) and merged into the next valid version
 				if (clear) this.stranded = null;
 				else if (this.timeline && this.base != null) {
@@ -72,7 +72,7 @@ export class EvraView extends TextFileView {
 					if (!same) this.stranded = { base: this.base, ours };
 				}
 				this.broken = data;
-				this.showError();
+				this.showError(e instanceof UnsupportedFile ? e.message : null);
 				return;
 			}
 		}
@@ -135,13 +135,19 @@ export class EvraView extends TextFileView {
 		this.updateUndo();
 	}
 
-	private showError() {
+	/** Shown instead of the timeline for a file Evra can't read: not JSON, or (with a reason) one it mustn't open. */
+	private showError(reason: string | null) {
 		this.timeline?.destroy();
 		this.timeline = null;
 		this.contentEl.empty();
 		this.contentEl.addClass('evra-error');
-		this.contentEl.createEl('p', { text: 'This timeline file couldn’t be read. It isn’t valid JSON, so it has been left untouched.' });
-		this.contentEl.createEl('p', { text: 'Open it in another editor to fix it, or restore it from a backup or the file recovery core plugin.' });
+		if (reason) {
+			this.contentEl.createEl('p', { text: `This timeline file can’t be opened here. ${reason}` });
+			this.contentEl.createEl('p', { text: 'It has been left untouched: Evra won’t change it, or save over it.' });
+		} else {
+			this.contentEl.createEl('p', { text: 'This timeline file couldn’t be read. It isn’t valid JSON, so it has been left untouched.' });
+			this.contentEl.createEl('p', { text: 'Open it in another editor to fix it, or restore it from a backup or the file recovery core plugin.' });
+		}
 		if (this.stranded) this.contentEl.createEl('p', { text: 'Changes you hadn’t saved are kept, and come back when the file can be read again.' });
 	}
 

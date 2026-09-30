@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.6
+
+- A timeline saved by a newer version of Evra (a higher file format version), or a file of another format, is no longer opened and resaved as version 1, which would drop what this version doesn't understand. Evra says why and leaves the file untouched: the view never saves over it, closed-timeline rename updates skip it, and embeds explain instead of drawing it.
+
 ## 1.0.5
 
 - The README's privacy section explains when Evra lists vault files and that it only ever writes to the clipboard.

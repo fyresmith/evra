@@ -603,3 +603,24 @@ test('plugin settings tab: drawn from definitions (Obsidian 1.13+), controls sav
 		t.eq(await p.ev(`app.plugins.plugins.evra.settings.newFileFolder`), 'Worlds', 'folder saved, trimmed');
 	} finally { await p.ev(`(() => { app.setting.close(); return 1; })()`); }
 });
+test('a timeline from a newer Evra is refused and never rewritten (open, save, note rename, embed)', async (p, h, t) => {
+	const future = JSON.stringify({ format: 'evra', version: 2, name: 'Future', events: [{ id: 'f1', t: 400, side: 'b', title: 'Heron', file: 'The Heron', v2only: { x: 1 } }], newTopField: [1, 2, 3] }, null, '\t');
+	await p.ev(`app.vault.create('Future.evra', ${JSON.stringify(future)}).then(() => 1)`); await p.sleep(300);
+	const disk = () => p.ev(`app.vault.adapter.read('Future.evra')`);
+	await p.ev(`app.workspace.getLeaf(false).openFile(app.vault.getAbstractFileByPath('Future.evra')).then(() => 1)`); await p.sleep(800);
+	const msg = await p.ev(`document.querySelector('.workspace-leaf.mod-active .evra-error')?.innerText || ''`);
+	t.ok(/newer version of Evra \(file format 2\)/.test(msg) && /left untouched/.test(msg), 'says why: ' + msg);
+	t.ok(!(await p.ev(`!!document.querySelector('.workspace-leaf.mod-active .evra-root')`)), 'no timeline drawn');
+	await p.ev(`app.workspace.activeLeaf.view.save().then(() => 1)`); await p.sleep(300);
+	await p.ev(`(() => { app.workspace.iterateRootLeaves(l => l.detach()); return 1; })()`); await p.sleep(500);
+	t.eq(await disk(), future, 'unchanged after saving and closing');
+	// renaming a note it links to rewrites closed timelines of this version, but not this one
+	await p.ev(`app.fileManager.renameFile(app.vault.getAbstractFileByPath('The Heron.md'), 'The Grey Heron.md').then(() => 1)`); await p.sleep(900);
+	t.eq(await disk(), future, 'unchanged after a linked note was renamed');
+	t.ok(/The Grey Heron/.test(await p.ev(`app.vault.adapter.read('Chronicle of Veld.evra')`)), 'a version-1 timeline still follows the rename');
+	await p.ev(`app.vault.create('FutureEmbed.md', ${JSON.stringify('```evra\ntimeline: Future\n```\n')}).then(() => 1)`);
+	await p.ev(`app.workspace.getLeaf(false).setViewState({type: 'markdown', state: {file: 'FutureEmbed.md', mode: 'preview'}}).then(() => 1)`); await p.sleep(1200);
+	const em = await p.ev(`document.querySelector('.workspace-leaf.mod-active .evra-embed')?.innerText || ''`);
+	t.ok(/couldn’t be read\. It was saved by a newer version of Evra/.test(em), 'the embed says why: ' + em);
+	t.eq(await disk(), future, 'still byte for byte the same');
+});

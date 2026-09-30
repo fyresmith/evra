@@ -1,5 +1,5 @@
 import { makeEngine } from '../src/engine';
-import { defaultCal, normCal, normDoc, sampleDoc } from '../src/model';
+import { checkFormat, defaultCal, normCal, normDoc, sampleDoc, UnsupportedFile } from '../src/model';
 import type { EvraDoc } from '../src/types';
 import { done, eq, ok } from './harness';
 
@@ -168,6 +168,24 @@ ok(sample.events.length === 18 && sample.eras.length === 10 && sample.range.join
 	ok(d.events[0].id === 'x' && d.events[2].id === '5', 'the first keeps its id');
 	eq(new Set(d.eras.map((e) => e.id)).size, 3, 'era ids made unique');
 	eq(d.eras.find((e) => e.name === 'Kid').parent, d.eras.find((e) => e.name === 'One').id, 'a child stays with the first era of that id');
+}
+
+// files from a newer Evra, or another program, are refused rather than normalised (saving would drop what isn't understood)
+{
+	const refused = (raw: unknown) => { try { normDoc(raw); return ''; } catch (e) { return e instanceof UnsupportedFile ? e.message : 'other: ' + String(e); } };
+	const future = { format: 'evra', version: 2, name: 'Later', events: [{ id: 'a', t: 1, side: 'b', title: 'x', newThing: { deep: 1 } }], newTopField: [1, 2] };
+	const before = JSON.stringify(future);
+	ok(/newer version of Evra \(file format 2\)/.test(refused(future)), 'version 2 refused, saying why: ' + refused(future));
+	eq(JSON.stringify(future), before, 'a refused file is not changed in memory either');
+	ok(/isn’t an Evra timeline/.test(refused({ format: 'canvas', nodes: [] })), 'another format refused');
+	ok(/isn’t one Evra knows/.test(refused({ format: 'evra', version: '2' })), 'a version that is not a number refused');
+	ok(/isn’t one Evra knows/.test(refused({ format: 'evra', version: 0 })), 'version 0 refused');
+	ok(/isn’t one Evra knows/.test(refused({ format: 'evra', version: 1.5 })), 'a fractional version refused');
+	eq(refused({ format: 'evra', version: 1, name: 'Now' }), '', 'version 1 opens');
+	eq(refused({ name: 'Hand-written', events: [] }), '', 'no format or version: taken as version 1');
+	eq(refused([]), '', 'non-objects are left to normDoc as before');
+	let threw = false; try { checkFormat({ version: 99 }); } catch { threw = true; }
+	ok(threw, 'checkFormat alone refuses too');
 }
 
 done('normalize');

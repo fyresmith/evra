@@ -123,7 +123,26 @@ function normRange(d: EvraDoc): [number, number] {
 }
 
 /** Fill in anything a document is missing, so older and hand-edited files open. */
+/** The newest .evra format this version of Evra reads and writes (later releases of format 1 only add optional fields). */
+export const FORMAT_VERSION = 1;
+
+/** A timeline file this version of Evra must not open: normalising it would drop what it doesn't understand, and saving
+    would write that loss back to disk. The message says why, for the person looking at it. */
+export class UnsupportedFile extends Error {}
+
+/** Throws UnsupportedFile for a file from another program or a newer Evra. A file without format or version is taken as
+    version 1, as the earliest files and hand-written ones may leave them out. */
+export function checkFormat(raw: unknown): void {
+	if (!isObj(raw)) return;
+	if ('format' in raw && raw.format !== 'evra') throw new UnsupportedFile(`It isn’t an Evra timeline: its format is ${JSON.stringify(raw.format)}.`);
+	if (!('version' in raw) || raw.version === FORMAT_VERSION) return;
+	const v = raw.version;
+	if (typeof v === 'number' && Number.isInteger(v) && v > FORMAT_VERSION) throw new UnsupportedFile(`It was saved by a newer version of Evra (file format ${v}). Update Evra to open it.`);
+	throw new UnsupportedFile(`Its format version, ${JSON.stringify(v)}, isn’t one Evra knows.`);
+}
+
 export function normDoc(raw: unknown, fallbackName = 'Untitled'): EvraDoc {
+	checkFormat(raw); // before anything is changed or dropped
 	const d = (raw && typeof raw === 'object' ? raw : {}) as Partial<EvraDoc>;
 	const palette = (Array.isArray(d.palette) ? d.palette : []).filter((p) => isObj(p) && (typeof p.id === 'string' || typeof p.id === 'number') && p.id !== '')
 		.map((p): ColorPreset => ({ ...p, id: String(p.id), name: text(p.name, typeof p.name === 'number' ? String(p.name) : 'Untitled color'), hex: typeof p.hex === 'string' && HEX.test(p.hex) ? p.hex : null }));

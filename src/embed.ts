@@ -2,7 +2,7 @@ import { FileView, MarkdownRenderChild, TFile, type MarkdownPostProcessorContext
 import { svgEl } from './dom';
 import { makeEngine } from './engine';
 import type EvraPlugin from './main';
-import { normDoc } from './model';
+import { normDoc, UnsupportedFile } from './model';
 import { VIEW_TYPE } from './view';
 import type { EvraDoc } from './types';
 
@@ -66,16 +66,16 @@ class EmbedChild extends MarkdownRenderChild {
 		const gen = ++this.gen, el = this.containerEl, o = parseEmbed(this.src);
 		const file = findTimeline(this.plugin, o.timeline, this.sourcePath);
 		this.filePath = file ? file.path : null;
-		let doc: EvraDoc = null, failed = false;
+		let doc: EvraDoc = null, failed: string | null = null;
 		if (file) {
 			try { doc = normDoc(JSON.parse(await this.plugin.app.vault.cachedRead(file)), file.basename); }
-			catch { failed = true; }
+			catch (e) { failed = e instanceof UnsupportedFile ? e.message : ''; }
 		}
 		if (gen !== this.gen) return; // a newer render has taken over
 		el.empty();
 		el.addClass('evra-embed');
 		if (!file) { el.createDiv({ cls: 'eh', text: o.timeline ? `No timeline called “${o.timeline}”.` : 'No timelines in this vault yet.' }); return; }
-		if (failed) { el.createDiv({ cls: 'eh', text: `“${file.basename}” couldn’t be read.` }); return; }
+		if (failed != null) { el.createDiv({ cls: 'eh', text: `“${file.basename}” couldn’t be read.${failed ? ' ' + failed : ''}` }); return; }
 		drawEmbed(el, doc, o, (id) => void this.open(file, id), (link) => this.plugin.app.metadataCache.getFirstLinkpathDest(link, file.path)?.basename || link.split('/').pop());
 	}
 }

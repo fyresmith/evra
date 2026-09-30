@@ -138,3 +138,4 @@ A leap rule adds `days` to month `month` in year *y* when *y* − `off` is a mul
 - Later versions of format 1 will only add optional fields.
 - Evra keeps fields it doesn't recognize.
 - A change that older versions couldn't read would raise `version`.
+- Evra won't open a file with a higher `version` than it knows, or with a `format` other than `"evra"`. It shows why, and leaves the file untouched: it never rewrites it, even to follow a renamed note, so nothing a newer Evra wrote is lost. A file with no `format` or `version` is read as version 1.
