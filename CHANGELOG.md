@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.6.2 (beta)
+
+- Fixed: closing a timeline (or switching its tab to another file) while editing a card lost what you'd typed. The edit is now saved first.
+- Ctrl/⌘ K and Ctrl/⌘ D no longer act on the timeline while you're typing in a card or a field.
+- **Remove timeline properties** now removes only the properties Evra writes, never a same-named property of your own that sync isn't using.
+
 ## 0.6.1 (beta)
 
 - The getting-started hint no longer covers the year ruler, and goes away once a timeline has five events.

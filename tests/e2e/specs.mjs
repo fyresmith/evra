@@ -561,3 +561,18 @@ test('large world: opens, scrolls and zooms without errors', async (p, h, t) => 
 	t.ok(Date.now() - t0 < 12000, 'responsive');
 	t.ok(await p.ev(`document.querySelectorAll('${A} .lines circle, ${A} .evra-card').length > 10`), 'draws');
 });
+test('closing the tab mid-edit keeps what was typed', async (p, h, t) => {
+	await h.open();
+	const c = await h.card('Siege of the Keep begins', '.dt');
+	await p.dbl(c.x, c.y); await p.sleep(250);
+	await p.key('a', 'ctrl'); await p.type('Typed then closed');
+	await p.ev(`app.commands.executeCommandById('workspace:close')`); await p.sleep(1200);
+	const d = JSON.parse(await p.ev(`app.vault.adapter.read('Chronicle of Veld.evra')`));
+	t.ok(d.events.some((e) => e.title === 'Typed then closed'), 'saved to disk');
+});
+test('Ctrl/Cmd D while typing a title does not duplicate cards', async (p, h, t) => {
+	await h.open();
+	const n = (await h.events()).length, c = await h.card('Siege of the Keep begins', '.dt');
+	await p.dbl(c.x, c.y); await p.sleep(250); await p.key('d', 'ctrl'); await p.sleep(200); await p.key('Escape');
+	t.eq((await h.events()).length, n, 'no duplicate');
+});

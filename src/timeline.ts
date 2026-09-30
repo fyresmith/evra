@@ -27,6 +27,8 @@ export interface Timeline {
 	noteChanged(link: string): void;
 	cssChanged(): void;
 	focus(): void;
+	/** Save the card being edited, if any. */
+	flush(): void;
 	destroy(): void;
 }
 
@@ -2613,6 +2615,7 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 		noteChanged(link: string) { syncFromNote(link); invalidate(); },
 		cssChanged() { cssEpoch++; measureFont = ''; family = ''; serif = ''; measureCache.clear(); tagKey = ''; if (!sheet.hidden) renderSheet(); invalidate(); },
 		focus() { if (!root.contains(doc().activeElement)) stage.focus({ preventScroll: true }); },
+		flush() { if (editing) finishEdit(true); },
 		destroy() {
 			destroyed = true;
 			if (editing) finishEdit(true);

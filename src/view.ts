@@ -27,8 +27,9 @@ export class EvraView extends TextFileView {
 		(this as unknown as { isPlaintext: boolean }).isPlaintext = false;
 		// Keys Obsidian would otherwise take for its own commands while a timeline has focus
 		this.scope = new Scope(this.app.scope);
-		this.scope.register(['Mod'], 'k', () => { this.timeline?.run('search'); return false; });
-		this.scope.register(['Mod'], 'd', () => { this.timeline?.run('duplicate'); return false; }); // Obsidian's editor uses it to delete a paragraph
+		const typing = () => { const a = activeDocument.activeElement as HTMLElement; return !!a && (a.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)); };
+		this.scope.register(['Mod'], 'k', () => { if (typing()) return true; this.timeline?.run('search'); return false; });
+		this.scope.register(['Mod'], 'd', () => { if (typing()) return true; this.timeline?.run('duplicate'); return false; }); // Obsidian's editor uses it to delete a paragraph
 		this.redoBtn = this.addAction('redo-2', 'Redo', () => this.timeline?.redo());
 		this.undoBtn = this.addAction('undo-2', 'Undo', () => this.timeline?.undo());
 		this.updateUndo();
@@ -89,17 +90,27 @@ export class EvraView extends TextFileView {
 		this.redoBtn?.toggleClass('is-disabled', !this.timeline?.canRedo());
 	}
 
+	/** Finish any card being edited and write everything to disk, before the view lets go of its file. */
+	private async flush() {
+		if (!this.timeline || this.broken != null) return;
+		this.timeline.flush();
+		await this.save();
+	}
+
 	async onClose(): Promise<void> {
 		window.clearTimeout(this.syncT);
+		await this.flush();
 		this.timeline?.destroy();
 		this.timeline = null;
 		await super.onClose();
 	}
 
 	async onUnloadFile(file: TFile): Promise<void> {
+		await this.flush();
 		await super.onUnloadFile(file);
 		this.timeline?.destroy();
 		this.timeline = null;
+		this.resolved.clear();
 		this.contentEl.empty();
 	}
 
@@ -255,15 +266,15 @@ export class EvraView extends TextFileView {
 
 	private async stripSyncedProps(doc: EvraDoc): Promise<number> {
 		const sy = doc.opts.sync;
-		const keys = new Set([...(sy.written || []), ...Object.values(sy.fields).map((f) => f.key.trim())].filter(Boolean));
+		const keys = new Set([...(sy.written || []), ...liveFields(doc).map((x) => x[1])].filter(Boolean)); // only properties Evra writes, never ones it merely could
 		const paths = new Set(sy.notes || []);
 		doc.events.forEach((e) => { const f = e.file && this.resolve(e.file); if (f) paths.add(f.path); });
 		let n = 0;
 		for (const p of paths) {
 			const f = this.app.vault.getFileByPath(p), fm = f && (this.app.metadataCache.getFileCache(f)?.frontmatter as Record<string, unknown> | undefined);
 			if (!f || !fm || ![...keys].some((k) => k in fm)) continue;
-			await this.app.fileManager.processFrontMatter(f, (m: Record<string, unknown>) => { keys.forEach((k) => delete m[k]); });
-			n++;
+			try { await this.app.fileManager.processFrontMatter(f, (m: Record<string, unknown>) => { keys.forEach((k) => delete m[k]); }); n++; }
+			catch (err) { console.error('Evra: couldn’t update the properties of', f.path, err); }
 		}
 		sy.written = []; sy.notes = [];
 		this.requestSave();
