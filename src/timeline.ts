@@ -235,8 +235,8 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 		if (sel && !S.events.find((e) => e.id === sel)) sel = null;
 		editing = null; host.requestSave(); host.syncNotes(S); invalidate();
 	}
-	function undo() { if (!hist.length) return; redo.push(snapshot()); restore(hist.pop()); updateUndo(); toast('Undone'); if (!sheet.hidden) renderSheet(); }
-	function redoF() { if (!redo.length) return; hist.push(snapshot()); restore(redo.pop()); updateUndo(); if (!sheet.hidden) renderSheet(); }
+	function undo() { if (!hist.length) return; popOnClose = null; closePop(); redo.push(snapshot()); restore(hist.pop()); updateUndo(); toast('Undone'); if (!sheet.hidden) renderSheet(); }
+	function redoF() { if (!redo.length) return; popOnClose = null; closePop(); hist.push(snapshot()); restore(redo.pop()); updateUndo(); if (!sheet.hidden) renderSheet(); }
 	// The settings panel is redrawn only by actions that change what it shows, never merely because something was saved:
 	// redrawing it as a field loses focus would swallow the click that moved the focus.
 	function updateUndo() { onUndoChange(); }
@@ -1102,6 +1102,7 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 		if (!ids.length) return;
 		const before = snapshot(), set = new Set(ids);
 		S.events = S.events.filter((e) => !set.has(e.id)); setSel([]); commit(before);
+		keepFocus();
 		toast(ids.length === 1 ? 'Deleted.' : `Deleted ${ids.length} cards.`, true);
 	}
 	/** The same day a year later: spans made from a moment start a year long, in whole days even with leap years. */
@@ -1172,7 +1173,7 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 		const ev = evById(sel);
 		if (!ev) return;
 		const before = snapshot();
-		if (ev.end != null) { delete ev.end; delete ev.os; delete ev.oe; } else { ev.end = yearLater(ev.t); ensureRange(ev); }
+		if (ev.end != null) { delete ev.end; delete ev.os; delete ev.oe; delete ev.life; } else { ev.end = yearLater(ev.t); ensureRange(ev); }
 		commit(before);
 	}
 
@@ -1188,6 +1189,7 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 			if (!a) { delete ev.rel; busy.delete(ev.id); return; }
 			visit(a);
 			if (!ev.rel) { busy.delete(ev.id); return; }
+			if (ev.rel.from === 'end' && a.end == null) { ev.rel.from = 'start'; ev.rel.at = a.t; ev.rel.offset = ev.t - a.t; busy.delete(ev.id); done.add(ev.id); return; } // the anchor stopped being a span: stay put
 			const at = ev.rel.from === 'end' && a.end != null ? a.end : a.t;
 			if (ev.rel.at != null && at !== ev.rel.at) { const d = at - ev.rel.at; ev.t += d; if (ev.end != null) ev.end += d; } // the anchor moved: follow it
 			ev.rel.offset = ev.t - at; ev.rel.at = at;
@@ -1467,8 +1469,8 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 			const ev = evById(drag.id), o = drag.o;
 			if (drag.which === 'auto') drag.which = dt > 0 ? 'end' : 'start';
 			if (drag.which === 'point') { const nt = snap(o.t + dt, fine); if (nt > o.t) { ev.t = o.t; ev.end = nt; } else if (nt < o.t) { ev.t = nt; ev.end = o.t; } else delete ev.end; }
-			else if (drag.which === 'start') { const nt = Math.min(snap(o.t + dt, fine), o.end); if (nt >= o.end) { ev.t = o.end; delete ev.end; delete ev.os; delete ev.oe; } else { ev.t = nt; ev.end = o.end; if (o.oe) ev.oe = true; } }
-			else { const nt = Math.max(snap(o.end + dt, fine), o.t); if (nt <= o.t) { ev.t = o.t; delete ev.end; delete ev.os; delete ev.oe; } else { ev.t = o.t; ev.end = nt; if (o.os) ev.os = true; } }
+			else if (drag.which === 'start') { const nt = Math.min(snap(o.t + dt, fine), o.end); if (nt >= o.end) { ev.t = o.end; delete ev.end; delete ev.os; delete ev.oe; delete ev.life; } else { ev.t = nt; ev.end = o.end; if (o.oe) ev.oe = true; } }
+			else { const nt = Math.max(snap(o.end + dt, fine), o.t); if (nt <= o.t) { ev.t = o.t; delete ev.end; delete ev.os; delete ev.oe; delete ev.life; } else { ev.t = o.t; ev.end = nt; if (o.os) ev.os = true; } }
 			showTip(L, ev.end != null ? fmtRange(ev) : fmt(ev.t)); invalidate();
 			return;
 		}
@@ -1669,9 +1671,11 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 	});
 
 	/* ---------- actions ---------- */
+	let justAdded: { id: string; before: string } = null;
 	function addEvent(t: number, side: Side) {
 		const before = snapshot(), ev: EvraEvent = { id: uid(), t, side, title: 'New event', text: '', color: null, file: null };
 		fresh.add(ev.id); S.events.push(ev); ensureRange(ev); sel = ev.id; commit(before);
+		justAdded = { id: ev.id, before };
 		raf(() => startEdit(ev.id));
 	}
 	function zoomToEvent(ev: EvraEvent, cb?: () => void) {
@@ -1711,6 +1715,8 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 		if (tt.contentEditable !== 'plaintext-only') tt.contentEditable = 'true';
 		bd.contentEditable = tt.contentEditable;
 		editBefore.set(el, snapshot());
+		if (justAdded && justAdded.id === id && hist[hist.length - 1] === justAdded.before) { hist.pop(); editBefore.set(el, justAdded.before); onUndoChange(); } // adding and naming a card is one undo step
+		justAdded = null;
 		tt.focus();
 		const r = doc().createRange(), s = win().getSelection();
 		r.selectNodeContents(tt); s.removeAllRanges(); s.addRange(r);
@@ -1742,7 +1748,7 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 		if (el && ev) {
 			if (save) {
 				const tt = q1(el, '.tt'), bd = q1(el, '.bd');
-				ev.title = (tt ? tt.innerText.trim() : '') || 'Untitled';
+				ev.title = (tt ? tt.innerText.replace(/\s+/g, ' ').trim().slice(0, 200) : '') || 'Untitled';
 				ev.text = bd ? bd.innerText.trim().slice(0, DESC_MAX) : '';
 				commit(editBefore.get(el));
 			}
@@ -1751,7 +1757,9 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 		}
 		stage.focus({ preventScroll: true }); invalidate();
 	}
-	function deleteEvent(id: string) { const before = snapshot(); S.events = S.events.filter((e) => e.id !== id); if (sel === id) sel = null; commit(before); toast('Deleted.', true); }
+	function deleteEvent(id: string) { const before = snapshot(); S.events = S.events.filter((e) => e.id !== id); if (sel === id) sel = null; commit(before); keepFocus(); toast('Deleted.', true); }
+	/** A removed card may have had the focus: hand it back to the timeline so shortcuts (like Ctrl+Z) keep working. */
+	const keepFocus = () => { const f = doc().activeElement; if (!root.contains(f) || cardsLayer.contains(f)) stage.focus({ preventScroll: true }); };
 	function createEra(a: number, b: number): Era | null {
 		let pid: string = null;
 		const mid = (a + b) / 2;
@@ -2419,7 +2427,7 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 				void host.createNote((ev.title || 'Untitled').trim(), ev.text || '').then((link) => { if (!link) return; act(() => { ev.file = link; })(); toast(`Created ${link}.md`); });
 			});
 			on('link', () => { closePop(); host.pickNote((link) => act(() => { ev.file = link; })()); });
-			on('span', () => { closePop(); act(() => { if (span) { delete ev.end; delete ev.os; delete ev.oe; } else { ev.end = yearLater(ev.t); ensureRange(ev); } })(); });
+			on('span', () => { closePop(); act(() => { if (span) { delete ev.end; delete ev.os; delete ev.oe; delete ev.life; } else { ev.end = yearLater(ev.t); ensureRange(ev); } })(); });
 			on('os', () => { closePop(); act(() => { if (ev.os) delete ev.os; else ev.os = true; })(); });
 			on('oe', () => { closePop(); act(() => { if (ev.oe) delete ev.oe; else ev.oe = true; })(); });
 			on('flip', () => { closePop(); act(() => { ev.side = ev.side === 'a' ? 'b' : 'a'; })(); });

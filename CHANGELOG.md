@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.6.7 (beta)
+
+- Fixed: after deleting a clicked card, Ctrl/⌘ Z did nothing until you clicked the timeline again.
+- Fixed: undoing while a card's menu was open left the menu editing the old card, so its next change was lost. Undo and redo now close menus.
+- Fixed: a lifespan turned back into a single moment kept its "someone's life" mark.
+- Fixed: a card pinned to a span's end jumped when that span became a single moment; it now stays put.
+- Adding a card and naming it is now one undo step, and titles are kept to one line.
+
 ## 0.6.6 (beta)
 
 - Fixed: undoing after renaming a linked note brought back the old, broken link.
