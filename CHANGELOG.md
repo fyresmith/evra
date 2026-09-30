@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.7.4 (beta)
+
+- Dates written ISO-style (2024-05-01, 2024/05/01, 2024-05) are read as year-month-day in search and in note properties, instead of as Year 1.
+- Note properties like Timeline-Year are read in any capitalisation.
+- Create cards from notes skips notes whose date property doesn't read as a date ("version 2", "Q3 2024") rather than guessing.
+
 ## 0.7.3 (beta)
 
 - Create cards from notes ticks notes with timeline properties at first; notes with just a generic year or date (books, films…) are listed unticked unless there are only a few.

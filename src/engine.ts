@@ -295,6 +295,13 @@ export function makeEngine(getDoc: () => EvraDoc) {
 		const c = S().cal;
 		q = q.trim().toLowerCase();
 		if (!q) return null;
+		// year-month(-day), as in ISO dates: "2024-05-01", "2024/05/01", "2024-05"; the month is a 1-based number into this calendar's months
+		const iso = /^(-?\d{1,9})([-/])(\d{1,2})(?:\2(\d{1,2}))?(?![\d/-])/.exec(q);
+		if (iso) {
+			const y = Number(iso[1]), mo = Number(iso[3]) - 1, d = iso[4] != null ? Math.max(0, Number(iso[4]) - 1) : 0;
+			if (!saneYear(y) || mo < 0 || mo >= c.months.length) return null;
+			return toT(y - c.yearStart, mo, d);
+		}
 		const negWord = c.fmt.yearNeg ? /\{Y\}\s+(\S+)/.exec(c.fmt.yearNeg) : null;
 		const neg = /(^|\s)[-−]\s*\d/.test(q) || (negWord && q.includes((negWord[1] || '~~').toLowerCase()));
 		const nums = (q.match(/\d+/g) || []).map(Number);

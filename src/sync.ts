@@ -1,4 +1,4 @@
-import { clamp, saneYear, str, type Engine } from './engine';
+import { clamp, eraAbbr, saneYear, str, type Engine } from './engine';
 import { SYNC_FIELDS } from './model';
 import type { EvraDoc, EvraEvent, SyncKey } from './types';
 
@@ -59,9 +59,10 @@ const lower = (fm: Record<string, unknown>) => Object.fromEntries(Object.entries
 
 /** A note's year, month and day properties, as a new date for its card (the span keeps its length), or null. */
 export function dateFromProps(fm: Record<string, unknown>, doc: EvraDoc, E: Engine, ev: EvraEvent): number | null {
-	const sy = doc.opts.sync, f = sy.fields, cur = E.parts(ev.t), pr = fm || {};
+	const sy = doc.opts.sync, f = sy.fields, cur = E.parts(ev.t), pr = fm || {}, low = lower(pr);
 	let yr = cur.yr, m = cur.m, d = cur.d;
-	const get = (key: string): unknown => pr[key];
+	// the exact key first, then any capitalisation of it, as noteDateOf reads them
+	const get = (key: string): unknown => (pr[key] != null ? pr[key] : low[key.toLowerCase()]);
 	if (f.year.on && get(f.year.key) != null) { const n = parseInt(str(get(f.year.key)), 10); if (saneYear(n)) yr = n - doc.cal.yearStart; }
 	if (f.month.on && get(f.month.key) != null && E.ci().M > 1) {
 		const v = str(get(f.month.key)).toLowerCase(), i = doc.cal.months.findIndex((x, j) => E.monthName(j).toLowerCase() === v), n = parseInt(v, 10);
@@ -90,5 +91,23 @@ export function noteDateOf(fm: Record<string, unknown>, doc: EvraDoc, E: Engine)
 		}
 		return E.toT(yn - doc.cal.yearStart, mi, d != null ? Math.max(0, (parseInt(s(d), 10) || 1) - 1) : 0);
 	}
-	return ds != null && typeof ds !== 'object' ? E.parseDateQuery(s(ds)) : null;
+	return ds != null && typeof ds !== 'object' && readsAsDate(s(ds), doc, E) ? E.parseDateQuery(s(ds)) : null;
+}
+
+/** Whether a free-form date property is worth reading: an ISO-style date, or numbers mixed only with words
+    this calendar uses (month, weekday, unit and era names, words from its formats). Anything else is skipped, not guessed. */
+export function readsAsDate(v: string, doc: EvraDoc, E: Engine): boolean {
+	const q = v.trim().toLowerCase();
+	if (!q || q.length > 80) return false;
+	if (/^-?\d{1,9}[-/]\d{1,2}([-/]\d{1,2})?(?![\d/-])/.test(q)) return true;
+	const nums = q.match(/\d+/g) || [];
+	if (!nums.length || nums.length > 3) return false;
+	const c = doc.cal, known = new Set(['of', 'the', 'c', 'ca', 'circa', 'st', 'nd', 'rd', 'th']);
+	const add = (x: string) => str(x).toLowerCase().replace(/\{\w+\}/g, ' ').split(/[^\p{L}]+/u).forEach((w) => w && known.add(w));
+	c.months.forEach((_, i) => { const n = E.monthName(i).toLowerCase(); add(n); n.split(/[^\p{L}]+/u).forEach((w) => w.length > 3 && known.add(w.slice(0, 3))); });
+	(c.weekdays || []).forEach(add);
+	Object.values(c.units).forEach(add);
+	Object.values(c.fmt).forEach((f) => { if (typeof f === 'string') add(f); });
+	doc.eras.forEach((e) => { add(e.name); add(eraAbbr(e)); });
+	return (q.match(/\p{L}+/gu) || []).every((w) => known.has(w));
 }

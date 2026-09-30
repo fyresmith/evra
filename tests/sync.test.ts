@@ -30,6 +30,13 @@ fm.year = 41; fm['timeline-month'] = 'Frost';
 const t = dateFromProps(fm, doc, E, ev);
 eq(t != null ? E.fmt(t) : '', '15 Frost, Year 41', 'a note edit moves the card');
 ok(dateFromProps({ ...fm, year: 38, 'timeline-month': 'Thaw' }, doc, E, ev) == null, 'no move when the note already matches');
+const tc = dateFromProps({ Year: 41, 'TIMELINE-MONTH': 'Frost' }, doc, E, ev);
+eq(tc != null ? E.fmt(tc) : '', '15 Frost, Year 41', 'property names are read in any capitalisation');
+doc.opts.sync.fields.year.key = 'timeline-year';
+const tc2 = dateFromProps({ 'Timeline-Year': 41, 'Timeline-Month': 'Frost' }, doc, E, ev);
+eq(tc2 != null ? E.fmt(tc2) : '', '15 Frost, Year 41', 'Timeline-Year works');
+ok(dateFromProps({ 'Timeline-Year': 38, 'timeline-year': 41 }, doc, E, ev) != null, 'the exact key wins over another capitalisation');
+doc.opts.sync.fields.year.key = 'year';
 
 // unlinking removes only timeline properties
 doc.opts.sync.written = ['timeline-date', 'year', 'timeline-month', 'timeline-era', 'timeline-sub-era'];
@@ -41,6 +48,17 @@ eq(noteDateOf({ year: 12, month: 'Bloom' }, doc, E), E.toT(12, 2, 0), 'year and 
 eq(noteDateOf({ 'timeline-year': 36, 'timeline-month': 'Ember', day: 9 }, doc, E), E.toT(36, 6, 8), 'timeline properties with a day');
 eq(noteDateOf({ date: '14 Frost 412' }, doc, E), E.toT(412, 9, 13), 'a date property');
 eq(noteDateOf({ tags: ['x'] }, doc, E), null, 'undated notes are skipped');
+// a generic date property that doesn't read as a date is skipped, not guessed
+for (const bad of ['tomorrow', 'version 2', 'see chapter 3', 'Q3 2024', '99999999999999999999', '12345678901 Frost', 'n/a', '1 2 3 4', '3 Blorp 412']) eq(noteDateOf({ date: bad }, doc, E), null, `date "${bad}" is skipped`);
+eq(noteDateOf({ date: 1e20 }, doc, E), null, 'a numeric date of 1e20 is skipped');
+eq(noteDateOf({ Date: 'Frost 412' }, doc, E), E.toT(412, 9, 0), 'month and year');
+eq(noteDateOf({ date: '15th of Frost, Year 412' }, doc, E), E.toT(412, 9, 14), 'ordinals and the year unit');
+eq(noteDateOf({ date: '412' }, doc, E), E.toT(412, 0, 0), 'a bare year');
+eq(noteDateOf({ date: 412 }, doc, E), E.toT(412, 0, 0), 'a numeric year');
+eq(noteDateOf({ date: 'Year −30' }, doc, E), E.toT(-30, 0, 0), 'a year before zero');
+eq(noteDateOf({ date: '0412-10-15' }, doc, E), E.toT(412, 9, 14), 'an ISO date');
+eq(noteDateOf({ date: 'Frost 412', year: 5 }, doc, E), E.toT(5, 0, 0), 'a year property still wins');
+eq(noteDateOf({ 'timeline-date': E.fmt(E.toT(412, 9, 14)) }, doc, E), E.toT(412, 9, 14), 'a date Evra wrote reads back');
 
 // note excerpts
 const long = '---\ncover: x\n---\n# Title\n' + 'word '.repeat(80) + '\n```evra\nera: x\n```';

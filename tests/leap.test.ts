@@ -71,4 +71,17 @@ eq(dateFromProps({ 'timeline-year': 1e20 }, doc, E, doc.events[0]), null, 'an ab
 	ok(E.ci(other) !== a, 'reset clears the cache');
 }
 
+// ISO-looking dates read as year-month-day
+eq(E.parseDateQuery('2024-05-01'), E.toT(2024, 4, 0), 'ISO date');
+eq(E.parseDateQuery(' 2024/05/01 '), E.toT(2024, 4, 0), 'slashed date');
+eq(E.parseDateQuery('2024-05'), E.toT(2024, 4, 0), 'year and month');
+eq(E.parseDateQuery('2024-02-29'), E.toT(2024, 1, 28), 'an ISO leap day');
+eq(E.parseDateQuery('2023-02-31'), E.toT(2023, 1, 27), 'an ISO day past the month end is clamped');
+eq(E.parseDateQuery('2024-05-01T10:30'), E.toT(2024, 4, 0), 'a time after the date is ignored');
+eq(E.parseDateQuery('-44-03-15'), E.toT(-44, 2, 14), 'negative ISO years');
+eq(E.parseDateQuery('2024-13-01'), null, 'month 13 is refused');
+eq(E.parseDateQuery('2024-00-01'), null, 'month 0 is refused');
+eq(noteDateOf({ date: '2024-05-01' }, doc, E), E.toT(2024, 4, 0), 'an ISO date property');
+eq(E.parseDateQuery('-30'), E.toT(-30, 0, 0), 'a bare negative year is still a year');
+
 done('leap');
