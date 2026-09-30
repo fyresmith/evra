@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.4.8 (beta)
+
+- Fixed: a compact card's enlarged hover view stayed open (dimming everything) while zooming. Zooming now closes it, and cards sliding under the pointer while scrolling or zooming no longer open it.
+
 ## 0.4.7 (beta)
 
 - Search ranks results: names that start with what you typed come first, then names containing it, then cards that only mention it in their description or tags.

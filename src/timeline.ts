@@ -1466,9 +1466,11 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 	/* Hovering a compact card dims everything else and opens it at full size in place */
 	const dimEl = cardsLayer.createDiv({ cls: 'dim' });
 	let peekEl: HTMLElement = null, peekT = 0, peekId: string = null;
+	let wheelAt = -Infinity;
 	function showPeek(id: string) {
 		const ev = evById(id), src = cardEls.get(id);
 		if (!ev || !src || lod !== 'compact' || drag || editing) return;
+		if (performance.now() - wheelAt < 400) return; // cards slide under the pointer while scrolling or zooming; don't open them
 		hidePeek(); peekId = id;
 		const el = cardsLayer.createDiv({ cls: 'evra-card peek enter' + (ev.color ? ' tint' : '') + (isSel(id) ? ' sel' : '') });
 		el.dataset.id = id;
@@ -1522,7 +1524,8 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 		e.preventDefault();
 		if (!G) return;
 		const L = local(e), unit = e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? G.L : 1;
-		if (e.ctrlKey || e.metaKey) { zoomAt(L.s, clamp(Math.exp(-e.deltaY * unit * 0.008), 0.7, 1.4)); return; }
+		wheelAt = e.timeStamp;
+		if (e.ctrlKey || e.metaKey) { hidePeek(); zoomAt(L.s, clamp(Math.exp(-e.deltaY * unit * 0.008), 0.7, 1.4)); return; }
 		const dy = e.deltaY * unit, dx = e.deltaX * unit;
 		hidePeek();
 		if (e.shiftKey && !dx) V.x += dy; // Shift + wheel scrolls across the timeline
