@@ -2090,7 +2090,7 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 		'shortcuts': () => openHelp({ x: G.W - 340, y: 60 }),
 	};
 	const pal = $('palette'), palIn = $<HTMLInputElement>('palIn'), palList = $('palList');
-	interface PalItem { kind: string; label: string; meta: string; color?: string; run: () => void }
+	interface PalItem { kind: string; label: string; meta: string; color?: string; rank?: number; run: () => void }
 	let palItems: PalItem[] = [], palSel = 0;
 	function openPalette(q: string, placeholder?: string) {
 		closePop(); pal.hidden = false; palIn.value = q;
@@ -2107,9 +2107,12 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 			const t = E.parseDateQuery(raw);
 			if (t != null) items.push({ kind: 'Go to', label: fmt(t), meta: 'Date', run: () => goToDate(t) });
 			if (q) {
-				S.events.forEach((ev) => { const title = titleOf(ev); if (hit(title) || hit(plainOf(descOf(ev))) || (ev.tags || []).some(hit)) items.push({ kind: 'Card', label: title, meta: ev.end != null ? fmtRange(ev) : fmt(ev.t), color: col(ev.color), run: () => { setSel([ev.id]); zoomToEvent(ev); } }); });
-				S.eras.forEach((e) => { if (hit(e.name)) items.push({ kind: 'Era', label: e.name, meta: `${fmt(e.start)} – ${fmt(e.end)}`, color: col(e.color), run: () => fitRange(e.start, e.end) }); });
-				host.searchNotes(q, 30).forEach((n) => items.push({ kind: 'Note', label: n.title, meta: S.events.some((e) => e.file && host.sameNote(e.file, n.link)) ? 'Linked' : 'Not on the timeline', run: () => host.openNote(n.link) }));
+				// names that start with the search come first, then names containing it, then matches in descriptions and tags
+				const rank = (name: string) => { const n = name.toLowerCase(); return n.startsWith(q) ? 0 : new RegExp('\\b' + q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).test(n) ? 1 : n.includes(q) ? 2 : 3; };
+				S.events.forEach((ev) => { const title = titleOf(ev); if (hit(title) || hit(plainOf(descOf(ev))) || (ev.tags || []).some(hit)) items.push({ kind: 'Card', label: title, meta: ev.end != null ? fmtRange(ev) : fmt(ev.t), color: col(ev.color), rank: rank(title), run: () => { setSel([ev.id]); zoomToEvent(ev); } }); });
+				S.eras.forEach((e) => { if (hit(e.name)) items.push({ kind: 'Era', label: e.name, meta: `${fmt(e.start)} – ${fmt(e.end)}`, color: col(e.color), rank: rank(e.name), run: () => fitRange(e.start, e.end) }); });
+				host.searchNotes(q, 30).forEach((n) => items.push({ kind: 'Note', label: n.title, meta: S.events.some((e) => e.file && host.sameNote(e.file, n.link)) ? 'Linked' : 'Not on the timeline', rank: rank(n.title) + 0.5, run: () => host.openNote(n.link) }));
+				items.sort((a, b) => (a.rank ?? -1) - (b.rank ?? -1));
 			}
 			if (!q && t == null) TIMELINE_COMMANDS.slice(0, 6).forEach((c) => items.push(cmdItem(c)));
 		}

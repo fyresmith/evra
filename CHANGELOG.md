@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.4.7 (beta)
+
+- Search ranks results: names that start with what you typed come first, then names containing it, then cards that only mention it in their description or tags.
+
 ## 0.4.6 (beta)
 
 - Fixed: the timeline could shift up inside its pane (hiding its top edge) when a focused card moved off screen, for example after fitting an era. The timeline's frame can no longer scroll.
