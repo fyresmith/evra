@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.7.39 (beta)
+
+- Moving a folder of linked notes updates the undo history in one pass, not once per note.
+
 ## 0.7.38 (beta)
 
 - Note changes find their card through a lookup instead of scanning every card (about 800 ms to 4 ms for a vault-wide change on a 2,000-card world).

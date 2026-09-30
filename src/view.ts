@@ -408,10 +408,9 @@ export class EvraView extends TextFileView {
 	/** The burst of renames is over. */
 	renamesDone() {
 		this.renameBefore = null;
-		const byTo = new Map<string, string[]>();
-		for (const [from, to] of this.relinks) byTo.set(to, [...(byTo.get(to) || []), from]);
+		const moves = new Map(this.relinks);
 		this.relinks.clear();
-		if (this.timeline) for (const [to, from] of byTo) this.timeline.relinkHistory(from, to);
+		if (this.timeline && moves.size) this.timeline.relinkHistory(moves);
 	}
 }
 

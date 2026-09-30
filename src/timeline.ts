@@ -30,7 +30,7 @@ export interface Timeline {
 	/** Save the card being edited, if any. */
 	flush(): void;
 	/** A note was renamed: point undo and redo at its new link too, so undoing never brings back a dead link. */
-	relinkHistory(from: string[], to: string): void;
+	relinkHistory(moves: Map<string, string>): void;
 	destroy(): void;
 }
 
@@ -2749,11 +2749,12 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 		cssChanged() { cssEpoch++; measureFont = ''; family = ''; serif = ''; measureCache.clear(); tagKey = ''; if (!sheet.hidden) renderSheet(); invalidate(); },
 		focus() { if (!root.contains(doc().activeElement)) stage.focus({ preventScroll: true }); },
 		flush() { if (editing) finishEdit(true); },
-		relinkHistory(from: string[], to: string) {
+		relinkHistory(moves: Map<string, string>) { // old link → new link, all at once, so a folder move parses each snapshot once
+			const olds = [...moves.keys()].map((f) => JSON.stringify(f));
 			const fix = (json: string) => {
-				if (!from.some((f) => json.includes(JSON.stringify(f)))) return json;
+				if (!olds.some((f) => json.includes(f))) return json;
 				const d = JSON.parse(json) as EvraDoc;
-				d.events.forEach((e) => { if (e.file && from.includes(e.file)) e.file = to; });
+				d.events.forEach((e) => { const to = e.file && moves.get(e.file); if (to) e.file = to; });
 				return JSON.stringify(d);
 			};
 			hist = hist.map(fix); redo = redo.map(fix);

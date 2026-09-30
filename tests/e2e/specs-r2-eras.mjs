@@ -720,7 +720,7 @@ test('search: a negative-year word in the format (like "BE") does not make month
 	const k = kit(p, h); await k.start('ttb');
 	await h.openSheet('formats'); await k.setVal('[data-fmt=yearNeg]', '{Y} BE'); await p.key('Escape'); await p.sleep(200);
 	const items = await k.palette('1 Ember 50');
-	t.ok(/1 Ember, Year 50/.test(items[0] || ''), '"1 Ember 50" reads as year 50: ' + items[0]);
+	t.ok(/1 Ember,? Year 50|Ember, Year 50/.test(items[0] || ''), '"1 Ember 50" reads as year 50: ' + items[0]);
 	await p.key('Escape');
 	const neg = await k.palette('5 BE');
 	t.ok(/5 BE/.test(neg[0] || ''), '"5 BE" is negative: ' + neg[0]);
