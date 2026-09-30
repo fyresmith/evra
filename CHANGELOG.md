@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.4.6 (beta)
+
+- Fixed: the timeline could shift up inside its pane (hiding its top edge) when a focused card moved off screen, for example after fitting an era. The timeline's frame can no longer scroll.
+
 ## 0.4.5 (beta)
 
 - No more stray tooltips: Obsidian shows one for anything with an accessible label, so hovering the timeline showed "Timeline". Tooltips now appear only on buttons, and they include the shortcut ("Zoom in (+)").

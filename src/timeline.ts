@@ -1295,6 +1295,8 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 
 	/* ---------- pointer ---------- */
 	const elLeftTop = (ce: HTMLElement, L: Local): At => (ce ? { x: px(ce, 'left'), y: px(ce, 'top') } : { x: L.x, y: L.y });
+	// the stage is a fixed frame; if anything ever scrolls it (a focused card off screen), put it back
+	stage.addEventListener('scroll', () => { stage.scrollTop = 0; stage.scrollLeft = 0; });
 	const capture = (id: number) => { try { stage.setPointerCapture(id); } catch { /* the pointer is already gone */ } };
 	stage.addEventListener('pointerenter', () => { stageRect = null; });
 	stage.addEventListener('pointerdown', (e) => {

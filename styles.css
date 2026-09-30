@@ -69,7 +69,7 @@
 .evra-root.evra-view {
 	position: relative;
 	padding: 0;
-	overflow: hidden;
+	overflow: clip;
 	background: var(--evra-bg);
 	color: var(--evra-ink);
 	font: 14px/1.45 var(--evra-f-ui);
@@ -151,7 +151,7 @@
 	cursor:default
 }
 .evra-root.evra-view .stage {
-	overflow:hidden;
+	overflow:clip; /* never scrolls, even to reveal a focused card */
 	background:var(--evra-bg);
 	touch-action:none;
 	user-select:none;
