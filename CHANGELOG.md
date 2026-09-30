@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.4.4 (beta)
+
+- Obsidian's word count no longer counts a timeline file's raw data (Evra views are marked as not plain text, like Canvas). This also stops Obsidian from trying to merge outside edits to the file line by line.
+- In horizontal timelines, era labels that start close together stack in rows instead of overlapping, and the hint text sits above the era rail.
+
 ## 0.4.3 (beta)
 
 - Fixed: double-clicking inside an era's shading (or on a span's thread) did nothing. Evra now detects double-clicks itself, because the browser only counts a double-click when both clicks land on the same element, and those are redrawn between clicks.

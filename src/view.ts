@@ -23,6 +23,8 @@ export class EvraView extends TextFileView {
 
 	constructor(leaf: WorkspaceLeaf, private plugin: EvraPlugin) {
 		super(leaf);
+		// Not plain text: Obsidian then leaves the file out of its word count and never tries to merge outside edits line by line (like Canvas)
+		(this as unknown as { isPlaintext: boolean }).isPlaintext = false;
 		this.redoBtn = this.addAction('redo-2', 'Redo', () => this.timeline?.redo());
 		this.undoBtn = this.addAction('undo-2', 'Undo', () => this.timeline?.undo());
 		this.updateUndo();

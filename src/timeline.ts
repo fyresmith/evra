@@ -44,7 +44,7 @@ interface Layout {
 }
 interface Dot { id: string | null; which?: 'point' | 'start' | 'end'; s: number; zoom?: [number, number] }
 interface Bound { id: string; which: 'start' | 'end'; s: number; dep: number }
-interface EraLabel { id: string; name: string; s: number; sub: boolean; lvl: number; lead?: number }
+interface EraLabel { id: string; name: string; s: number; sub: boolean; lvl: number; lead?: number; row?: number }
 interface Bundle { side: Side; n: number; ids: string[]; s: number }
 interface FrameInfo {
 	dots: Dot[]; bounds: Bound[]; eraLabels: EraLabel[]; ticks?: { s: number; label: string }[]; ticks2?: { s: number; label: string }[];
@@ -318,6 +318,8 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 	const plainDesc = (ev: EvraEvent) => (ev.file ? noteInfo(ev.file).plain : plainOf(ev.text || '').trim());
 	let measureFont = '', lastFont = '', family = '';
 	const uiFamily = () => family || (family = win().getComputedStyle(stage).fontFamily || 'sans-serif'); // read once: asking for styles mid-frame forces a recalculation
+	let serif = '';
+	const eraFamily = () => serif || (serif = cssVar('--evra-f-era') || 'Georgia, serif');
 	const measureCtx = createEl('canvas').getContext('2d'), measureCache = new Map<string, number>();
 	const measure = (text: string, width: number) => {
 		const k = width + '|' + text, hit = measureCache.get(k);
@@ -648,8 +650,18 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 		});
 		// labels that start at the same moment stack, outermost era first
 		F.eraLabels.sort((a, b) => a.s - b.s || a.lvl - b.lvl);
-		let lastEnd = -Infinity;
-		F.eraLabels.forEach((t) => { t.lead = Math.max(0, lastEnd - t.s); lastEnd = t.s + t.lead + 24; }); // push down past the label above
+		if (G.vert) { // labels run down the edge: push each one below the label above it
+			let lastEnd = -Infinity;
+			F.eraLabels.forEach((t) => { t.lead = Math.max(0, lastEnd - t.s); lastEnd = t.s + t.lead + 24; });
+		} else { // labels run along the bottom: a label that would overlap the one before it moves up a row
+			const spans = F.eraLabels.map((t) => { const w = eraLabelWidth(t); return { t, lo: G.rev ? t.s - 6 - w : t.s + 6, hi: G.rev ? t.s - 6 : t.s + 6 + w }; }).sort((a, b) => a.lo - b.lo);
+			const rows: number[] = [];
+			spans.forEach(({ t, lo, hi }) => {
+				let r = rows.findIndex((end) => end + 6 <= lo);
+				if (r < 0) { r = rows.length; rows.push(0); }
+				rows[r] = hi; t.row = r; t.lead = 0;
+			});
+		}
 		// the era rail: every era, at every depth, as a bar beside the ruler
 		const maxDep = Math.max(0, ...S.eras.map((e) => dep[e.id]));
 		F.railW = maxDep ? maxDep * 7 + 4 : 0;
@@ -910,6 +922,21 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 	}
 
 	/* ---------- overlays: tags, era labels, rulers, bundles, now, breadcrumb ---------- */
+	// An era label's width, from font metrics (reading it from the page mid-frame would force a layout)
+	const eraWidths = new Map<string, number>();
+	function eraLabelWidth(t: EraLabel): number {
+		const k = (t.sub ? 's|' : 't|') + t.name + '|' + cssEpoch;
+		let w = eraWidths.get(k);
+		if (w == null) {
+			if (eraWidths.size > 2000) eraWidths.clear();
+			measureCtx.font = t.sub ? `italic 400 12.5px ${eraFamily()}` : `600 10.5px ${uiFamily()}`;
+			const text = t.sub ? t.name : t.name.toUpperCase();
+			w = Math.min(220, Math.ceil(measureCtx.measureText(text).width + (t.sub ? 0 : text.length * 10.5 * 0.14)) + 18);
+			lastFont = '';
+			eraWidths.set(k, w);
+		}
+		return w;
+	}
 	let crumbKey = '', tagKey = '', tagWidths: number[] = [];
 	function renderTags() {
 		const box = $('tags'), list: TagInfo[] = [];
@@ -952,7 +979,7 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 			if (el.textContent !== t.name) el.textContent = t.name;
 			const d = G.rev ? -1 : 1;
 			if (G.vert) el.setCssStyles({ left: RULER + 6 + (F.railW || 0) + 'px', top: rd(t.s + d * (6 + t.lead) - (G.rev ? 20 : 0)) + 'px', bottom: '', transform: '' });
-			else el.setCssStyles({ left: rd(t.s + (G.rev ? -6 : 6)) + 'px', transform: G.rev ? 'translateX(-100%)' : '', top: '', bottom: 44 + G.inb + (F.railW || 0) + t.lead + 'px' });
+			else el.setCssStyles({ left: rd(t.s + (G.rev ? -6 : 6)) + 'px', transform: G.rev ? 'translateX(-100%)' : '', top: '', bottom: 44 + G.inb + (F.railW || 0) + (t.row || 0) * 26 + 'px' });
 		});
 	}
 	$('eraLabels').addEventListener('click', (e) => {
@@ -1011,7 +1038,7 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 	}
 	function renderOverlay(dep: Record<string, number>, R0: number, R1: number) {
 		renderNow(); renderMinimap(); renderRuler(); renderEraLabels(); renderBundles(); renderFilterPill();
-		$('hint').setCssStyles({ bottom: G.vert ? '' : 36 + G.inb + 'px' }); // clear the ruler along the bottom
+		$('hint').setCssStyles({ bottom: G.vert ? '' : 42 + G.inb + (F.railW || 0) + 'px' }); // clear the ruler and the era rail along the bottom
 		renderTags();
 		const tc = tAt(G.L / 2), path = S.eras.filter((e) => e.start <= tc && e.end > tc).sort((a, b) => dep[a.id] - dep[b.id]);
 		const key = path.map((e) => e.id + e.name).join('|');
@@ -2548,7 +2575,7 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 		},
 		notesChanged() { invalidate(); },
 		noteChanged(link: string) { syncFromNote(link); invalidate(); },
-		cssChanged() { cssEpoch++; measureFont = ''; family = ''; measureCache.clear(); tagKey = ''; if (!sheet.hidden) renderSheet(); invalidate(); },
+		cssChanged() { cssEpoch++; measureFont = ''; family = ''; serif = ''; measureCache.clear(); tagKey = ''; if (!sheet.hidden) renderSheet(); invalidate(); },
 		focus() { if (!root.contains(doc().activeElement)) stage.focus({ preventScroll: true }); },
 		destroy() {
 			destroyed = true;
