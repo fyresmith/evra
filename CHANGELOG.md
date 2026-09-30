@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.8.15 (beta)
+
+- Create cards from notes leaves notes for other timelines unticked and adds a filter.
+
 ## 0.8.14 (beta)
 
 - Left-to-right and right-to-left timelines centre the line in the room above the ruler, so cards below it no longer cover the ruler.

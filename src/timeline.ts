@@ -2401,32 +2401,35 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 
 	/* ---------- creating cards from notes ---------- */
 	// Dated notes not on this timeline. Strong ones (timeline properties, or a month, day or date in this calendar) come first and
-	// start ticked; a bare year (books, films…) only when there are few; notes dated in another calendar (a month or era this
-	// one doesn't have, e.g. synced from another timeline) come last and unticked. Big vaults list the first CFN_MAX.
+	// start ticked; a bare year (books, films…) only when there are few. Notes that belong to another timeline come last and
+	// unticked: named for another one in their timeline property, dated in a month or era this calendar doesn't have, or (when the
+	// host can tell) linked or synced by another timeline file. Within each, notes in this timeline's folder come first.
+	// Big vaults list the first CFN_MAX.
+	type Cand = { link: string; title: string; props: Record<string, unknown>; near?: boolean; elsewhere?: boolean };
 	function candidates() {
 		const linked = new Set(S.events.map((e) => e.file).filter(Boolean)), f = S.opts.sync.fields;
 		const tlKeys = new Set(['timeline', ...Object.values(f).map((x) => x.key.toLowerCase())].filter((k) => k.startsWith('timeline')));
 		const months = new Set(S.cal.months.map((_, j) => E.monthName(j).toLowerCase())), eras = new Set(S.eras.map((x) => x.name.toLowerCase())), M = S.cal.months.length;
-		const list: { link: string; title: string; t: number; rank: number; tick?: boolean }[] = [];
-		for (const x of host.candidateNotes(linked)) {
+		const list: { link: string; title: string; t: number; rank: number; near: boolean; tick?: boolean }[] = [], me = S.name.trim().toLowerCase();
+		for (const x of host.candidateNotes(linked) as Cand[]) {
 			const t = noteDateOf(x.props, S, E);
 			if (t == null) continue;
 			const low: Record<string, unknown> = {};
 			for (const k in x.props) low[k.toLowerCase()] = x.props[k];
 			const pick = (...ks: string[]) => ks.map((k) => low[k.toLowerCase()]).find((v) => v != null && v !== '');
 			const m = pick(f.month.key, 'month'), d = pick(f.day.key, 'day'), ds = pick(f.date.key, 'date'), er = low[f.era.key.toLowerCase()], tds = low[f.date.key.toLowerCase()];
-			const ms = str(m).trim().toLowerCase(), mn = /^\d+$/.test(ms) ? +ms : NaN;
-			const foreign = (m != null && !(months.has(ms) || mn >= 1 && mn <= M)) || (typeof er === 'string' && er && !eras.has(er.toLowerCase())) || (typeof tds === 'string' && tds && !readsAsDate(tds, S, E));
+			const ms = str(m).trim().toLowerCase(), mn = /^\d+$/.test(ms) ? +ms : NaN, tl = low[f.timeline.key.toLowerCase()] ?? low.timeline;
+			const foreign = x.elsewhere || (typeof tl === 'string' && tl.trim() && tl.trim().toLowerCase() !== me) || (m != null && !(months.has(ms) || mn >= 1 && mn <= M)) || (typeof er === 'string' && er && !eras.has(er.toLowerCase())) || (typeof tds === 'string' && tds && !readsAsDate(tds, S, E));
 			const strong = !foreign && (Object.keys(low).some((k) => tlKeys.has(k)) || m != null || d != null || (typeof ds === 'string' && !/^-?\d{1,9}[-/]\d/.test(ds.trim()) && readsAsDate(ds, S, E)));
-			list.push({ link: x.link, title: x.title, t, rank: foreign ? 2 : strong ? 0 : 1 });
+			list.push({ link: x.link, title: x.title, t, rank: foreign ? 2 : strong ? 0 : 1, near: !!x.near });
 		}
-		list.sort((a, b) => a.rank - b.rank || a.t - b.t);
+		list.sort((a, b) => a.rank - b.rank || +b.near - +a.near || a.t - b.t);
 		const own = list.filter((x) => x.rank < 2).length;
 		list.forEach((x) => (x.tick = x.rank === 0 || (x.rank === 1 && own <= 12)));
 		return list;
 	}
 	const CFN_MAX = 200;
-	let cfnSig = '', cfnT = 0;
+	let cfnSig = '', cfnT = 0, cfnQ = '';
 	const cfnPick = new Map<string, boolean>(); // ticks the user changed, kept across refreshes
 	// The list redraws only when the dated notes change (a new note's properties arrive a moment after it's created)
 	function refreshCfn() {
@@ -2436,14 +2439,20 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 		if (sig === cfnSig) return;
 		cfnSig = sig;
 		const shown = all.slice(0, CFN_MAX), more = all.length - shown.length, other = all.filter((x) => x.rank === 2).length;
-		const focused = box.contains(doc().activeElement) ? (doc().activeElement as HTMLElement).dataset.cfn : null;
+		const fa = doc().activeElement as HTMLElement, focused = box.contains(fa) ? (fa.dataset.cfn != null ? `[data-cfn="${CSS.escape(fa.dataset.cfn)}"]` : fa.dataset.k ? `[data-k="${fa.dataset.k}"]` : null) : null;
 		setHTML(box, all.length ? `<div class="cfnhead"><span>${all.length} dated note${all.length === 1 ? '' : 's'}${other ? ` · ${other} dated in another calendar, listed last` : ''}</span><button class="tbtn" data-k="cfnAll">Tick all</button><button class="tbtn" data-k="cfnNone">Untick all</button></div>
+			<input type="search" data-k="cfnQ" placeholder="Filter by name" aria-label="Filter notes by name" value="${esc(cfnQ)}">
 			<div class="cfnlist">${shown.map((x) => `<label class="chk"><input type="checkbox" data-cfn="${esc(x.link)}" ${cfnPick.get(x.link) ?? x.tick ? 'checked' : ''}> ${esc(x.title)} <small class="cfn-date">${esc(fmt(x.t))}</small></label>`).join('')}</div>
 			${more ? `<p class="note">…and ${more} more. Create or untick these to work through the rest.</p>` : ''}<div class="rowx"><button class="btn" data-k="cfnGo"></button></div>` : '<p class="note">No dated notes are waiting.</p>');
 		const boxes = qa<HTMLInputElement>(box, '[data-cfn]'), go = q1<HTMLButtonElement>(box, '[data-k=cfnGo]');
 		const count = () => { if (!go) return; const n = boxes.filter((b) => b.checked).length; go.textContent = `Create ${n} card${n === 1 ? '' : 's'}`; go.disabled = !n; };
-		boxes.forEach((b) => { b.onchange = () => { cfnPick.set(b.dataset.cfn, b.checked); count(); }; if (b.dataset.cfn === focused) b.focus({ preventScroll: true }); });
-		const all1 = (on: boolean) => { boxes.forEach((b) => { b.checked = on; cfnPick.set(b.dataset.cfn, on); }); count(); };
+		boxes.forEach((b) => (b.onchange = () => { cfnPick.set(b.dataset.cfn, b.checked); count(); }));
+		if (focused) q1(box, focused)?.focus({ preventScroll: true });
+		// the filter only hides rows; Tick all and Untick all act on the rows shown
+		const qi = q1<HTMLInputElement>(box, '[data-k=cfnQ]'), rows = boxes.map((b) => [b, b.parentElement, b.parentElement.textContent.toLowerCase()] as const);
+		const filt = () => { const q = cfnQ.trim().toLowerCase(); rows.forEach(([, r, txt]) => r.toggleClass('hide', !!q && !txt.includes(q))); };
+		if (qi) { qi.oninput = () => { cfnQ = qi.value; filt(); }; filt(); }
+		const all1 = (on: boolean) => { rows.forEach(([b, r]) => { if (r.hasClass('hide')) return; b.checked = on; cfnPick.set(b.dataset.cfn, on); }); count(); };
 		const ta = q1(box, '[data-k=cfnAll]'), tn = q1(box, '[data-k=cfnNone]');
 		if (ta) ta.onclick = () => all1(true);
 		if (tn) tn.onclick = () => all1(false);

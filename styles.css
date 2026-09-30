@@ -2099,6 +2099,13 @@
 	max-height: 320px;
 	overflow-y: auto;
 }
+.evra-root.evra-view .cfn [data-k=cfnQ] {
+	width:100%;
+	margin-bottom:6px
+}
+.evra-root.evra-view .cfnlist .hide {
+	display:none
+}
 .evra-root.evra-view .cfn-date {
 	color: var(--evra-muted);
 	font-family: var(--evra-f-mono);
