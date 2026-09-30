@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.8.29 (beta)
+
+- The end-to-end runner closes every pane between tests, and the empty-clipboard test starts from a fresh plugin.
+
 ## 0.8.28 (beta)
 
 - A second pane on the same timeline now follows outside changes after the other pane saved, instead of keeping cards that were removed on disk.

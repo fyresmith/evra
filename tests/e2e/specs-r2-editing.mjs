@@ -453,6 +453,8 @@ test('R2E32 group drag of a selection across the line moves all to that side; on
 
 /* ================= copy / paste / duplicate ================= */
 test('R2E33 Ctrl+V with nothing copied toasts and changes nothing', async (p, h, t) => {
+	// the copy buffer is shared by every timeline for as long as the plugin runs, so start from a fresh plugin
+	await p.ev(`app.plugins.disablePlugin('evra').then(() => app.plugins.enablePlugin('evra')).then(() => 1)`); await p.sleep(300);
 	await h.open(); await focusStage(p);
 	const before = JSON.stringify(await h.events());
 	await p.key('v', 'ctrl'); await p.sleep(150);

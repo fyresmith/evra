@@ -69,7 +69,7 @@ function helpers(p) {
 		async reset() {
 			await p.ev(`(async () => {
 				document.querySelectorAll('.modal-close-button').forEach(b => b.click());
-				app.workspace.iterateRootLeaves(l => l.detach());
+				const leaves = []; app.workspace.iterateRootLeaves(l => { leaves.push(l); }); leaves.forEach(l => l.detach()); // not while iterating, which can skip one
 				await new Promise(r => setTimeout(r, 150));
 				const files = ${JSON.stringify([...pristine])};
 				for (const [path, text] of files) {
