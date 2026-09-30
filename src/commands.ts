@@ -22,6 +22,7 @@ export const TIMELINE_COMMANDS: CommandInfo[] = [
 	{ id: 'spans-threads', name: 'Spans as threads', key: '' },
 	{ id: 'spans-blocks', name: 'Spans as blocks', key: '' },
 	{ id: 'select-all', name: 'Select all cards', key: 'Ctrl A' },
+	{ id: 'duplicate', name: 'Duplicate the selection', key: 'Ctrl D' },
 	{ id: 'undo', name: 'Undo', key: 'Ctrl Z' },
 	{ id: 'redo', name: 'Redo', key: 'Ctrl ⇧ Z' },
 	{ id: 'settings-calendar', name: 'Settings: calendar', key: '' },

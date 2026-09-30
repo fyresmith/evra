@@ -28,6 +28,7 @@ export class EvraView extends TextFileView {
 		// Keys Obsidian would otherwise take for its own commands while a timeline has focus
 		this.scope = new Scope(this.app.scope);
 		this.scope.register(['Mod'], 'k', () => { this.timeline?.run('search'); return false; });
+		this.scope.register(['Mod'], 'd', () => { this.timeline?.run('duplicate'); return false; }); // Obsidian's editor uses it to delete a paragraph
 		this.redoBtn = this.addAction('redo-2', 'Redo', () => this.timeline?.redo());
 		this.undoBtn = this.addAction('undo-2', 'Undo', () => this.timeline?.undo());
 		this.updateUndo();

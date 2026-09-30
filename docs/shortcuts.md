@@ -71,6 +71,7 @@ Every command below is available in Obsidian's command palette. None have defaul
 - **Direction: top to bottom**, **Direction: bottom to top**, **Direction: left to right**, **Direction: right to left**
 - **Spans as threads**, **Spans as blocks**
 - **Select all cards**
+- **Duplicate the selection**
 - **Undo**, **Redo**
 - **Settings: calendar**, **Settings: formats**, **Settings: timeline**, **Settings: cards**, **Settings: colors**, **Settings: notes**
 - **Save this view…**

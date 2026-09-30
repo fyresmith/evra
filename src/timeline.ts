@@ -232,8 +232,10 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 		editing = null; host.requestSave(); host.syncNotes(S); invalidate();
 	}
 	function undo() { if (!hist.length) return; redo.push(snapshot()); restore(hist.pop()); updateUndo(); toast('Undone'); if (!sheet.hidden) renderSheet(); }
-	function redoF() { if (!redo.length) return; hist.push(snapshot()); restore(redo.pop()); updateUndo(); }
-	function updateUndo() { if (!sheet.hidden && !sheet.contains(doc().activeElement)) renderSheet(); onUndoChange(); }
+	function redoF() { if (!redo.length) return; hist.push(snapshot()); restore(redo.pop()); updateUndo(); if (!sheet.hidden) renderSheet(); }
+	// The settings panel is redrawn only by actions that change what it shows, never merely because something was saved:
+	// redrawing it as a field loses focus would swallow the click that moved the focus.
+	function updateUndo() { onUndoChange(); }
 	const evById = (id: string): EvraEvent => {
 		if (idxFor !== S.events || idxLen !== S.events.length) { idx = new Map(S.events.map((e) => [e.id, e])); idxFor = S.events; idxLen = S.events.length; }
 		return idx.get(id);
@@ -1750,8 +1752,11 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 	/* ---------- settings panel ---------- */
 	let sheetTab = 'calendar', lastTpl: HTMLInputElement = null, keepDates = true;
 	function openSheet(tab?: string) { closePop(); if (tab) sheetTab = tab; sheet.hidden = false; renderSheet(); }
-	function closeSheet() { sheet.hidden = true; }
+	function closeSheet() { const had = sheet.contains(doc().activeElement); sheet.hidden = true; if (had) stage.focus({ preventScroll: true }); }
 	$('sheetClose').onclick = closeSheet;
+	sheetBody.tabIndex = -1;
+	// Enter saves a text or number field, as leaving it does
+	sheetBody.addEventListener('keydown', (e) => { const el = e.target as HTMLElement; if (e.key === 'Enter' && el.instanceOf(HTMLInputElement) && /^(text|number)$/.test(el.type)) { e.preventDefault(); el.blur(); sheetBody.focus({ preventScroll: true }); } });
 	$('sheetTabs').addEventListener('click', (e) => { const b = closest(e.target, '[data-tab]'); if (b) { sheetTab = b.dataset.tab; renderSheet(); } });
 	function sampleT(kind: Kind) {
 		const c = ci(), m = Math.min(3, c.M - 1), d = Math.min(13, S.cal.months[m].days - 1), y = 42 - S.cal.yearStart;
@@ -1841,7 +1846,9 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 			<section><h4>Grouping</h4><label class="fld"><span>Group a ${esc(c.units.year)} into one card when it has more than</span><div class="seg txt">${([[0, 'Never'], [2, '2'], [3, '3'], [5, '5'], [8, '8']] as [number, string][]).map(([n, l]) => `<button data-grp="${n}" class="${o.groupOver === n ? 'on' : ''}">${l}</button>`).join('')}</div></label><p class="note">Only while zoomed out. Zooming in spreads the group back into separate cards.</p></section>`;
 		}
 		const scroll = sheetBody.scrollTop;
+		const hadFocus = sheet.contains(doc().activeElement);
 		setHTML(sheetBody, h);
+		if (hadFocus && !sheet.contains(doc().activeElement)) sheetBody.focus({ preventScroll: true }); // keep keyboard shortcuts working
 		qa(sheetBody, '.mrow').forEach((r) => (r.draggable = true));
 		sheetBody.scrollTop = scroll;
 		bindSheet();
@@ -2087,6 +2094,7 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 		'spans-threads': () => { const b = snapshot(); S.opts.spanStyle = 'threads'; noAnim = true; commit(b); },
 		'spans-blocks': () => { const b = snapshot(); S.opts.spanStyle = 'blocks'; noAnim = true; commit(b); },
 		'select-all': () => selectAll(),
+		'duplicate': () => duplicateSel(),
 		'undo': () => undo(), 'redo': () => redoF(),
 		'settings-calendar': () => openSheet('calendar'), 'settings-formats': () => openSheet('formats'), 'settings-timeline': () => openSheet('timeline'),
 		'settings-cards': () => openSheet('cards'), 'settings-colors': () => openSheet('colors'), 'settings-notes': () => openSheet('notes'),
@@ -2287,7 +2295,13 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 		pop.setCssStyles({ left: clamp(at.x, 8, G.W - w - 8) + 'px', top: clamp(at.y, 8, G.H - h - 8) + 'px' });
 		if (bind) bind(pop);
 	}
-	function closePop() { if (pop.hidden) return; const f = popOnClose; popOnClose = null; pop.hidden = true; pop.empty(); if (f) f(); }
+	function closePop() {
+		if (pop.hidden) return;
+		const f = popOnClose, had = pop.contains(doc().activeElement);
+		popOnClose = null; pop.hidden = true; pop.empty();
+		if (had) stage.focus({ preventScroll: true }); // the focus was in the popover: give it back to the timeline, so shortcuts keep working
+		if (f) f();
+	}
 	const onDocPointer = (e: PointerEvent) => { if (!pop.hidden && !pop.contains(e.target as Node) && !closest(e.target, '[data-pop-toggle]')) closePop(); };
 	const swatchRow = (cur: string | null) => `<div class="swatches" role="group" aria-label="Color">${[{ id: '', name: 'No color' }, ...S.palette].map((p) => `<button class="swb ${p.id ? '' : 'none'} ${(cur || '') === p.id ? 'on' : ''}" data-color="${p.id}" style="--cc:${p.id ? col(p.id) : 'transparent'}" title="${esc(p.name)}" aria-label="${esc(p.name)}"></button>`).join('')}<label class="swb add" title="New color preset…"><input type="color" data-newcolor value="#7c8cff" aria-label="New color preset"></label></div>`;
 	// Same color behaviour for cards and eras. commitNow: record an undo step per pick (the era editor records one when it closes)

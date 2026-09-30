@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.5.1 (beta)
+
+- Fixed: clicking a button in the settings panel right after editing a field did nothing (saving the field redrew the panel under the pointer).
+- Fixed: keyboard shortcuts stopped working after a menu, popover or settings field closed, until you clicked the timeline again.
+- Enter now saves a settings field, as leaving it does.
+- Ctrl/⌘ D duplicates the selection again (Obsidian's editor claimed it), and **Duplicate the selection** is a command.
+
 ## 0.5.0 (beta)
 
 - A new README: a guided tour with screenshots and short demos of every feature, all captured in Obsidian.
