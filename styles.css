@@ -76,8 +76,9 @@
 	color: var(--evra-ink);
 	font: 14px/1.45 var(--evra-f-ui);
 }
-.evra-root.evra-view [hidden] {
-	display: none !important;
+/* :is() takes its most specific argument, so the id (which nothing has) lifts this above every class-based display rule */
+.evra-root.evra-view :is([hidden], #evra-hidden) {
+	display: none;
 }
 .evra-root.evra-view .stage {
 	position: absolute;
@@ -96,9 +97,53 @@
 	--no-tooltip: false;
 }
 
-/* Form controls start from the browser's own look, not Obsidian's, and are styled below. */
+/* Form controls start from the browser's own look, not Obsidian's, and are styled below. Each property Obsidian's own
+   styles set is put back to the browser's default one by one. */
 .evra-root.evra-view :is(button, input, select, textarea, kbd, hr) {
-	all: revert;
+	appearance: revert;
+	background: revert;
+	border: revert;
+	border-radius: revert;
+	box-shadow: revert;
+	outline: revert;
+	outline-offset: revert;
+	margin: revert;
+	padding: revert;
+	width: revert;
+	height: revert;
+	min-width: revert;
+	min-height: revert;
+	max-width: revert;
+	max-height: revert;
+	display: revert;
+	position: revert;
+	inset: revert;
+	z-index: revert;
+	align-items: revert;
+	justify-content: revert;
+	gap: revert;
+	flex: revert;
+	line-height: revert;
+	letter-spacing: revert;
+	text-align: revert;
+	text-transform: revert;
+	text-decoration: revert;
+	text-indent: revert;
+	text-shadow: revert;
+	white-space: revert;
+	vertical-align: revert;
+	cursor: revert;
+	opacity: revert;
+	filter: revert;
+	backdrop-filter: revert;
+	transform: revert;
+	transition: revert;
+	animation: revert;
+	user-select: revert;
+	pointer-events: revert;
+	accent-color: revert;
+	caret-color: revert;
+	overflow: revert;
 	box-sizing: border-box;
 	font: inherit;
 	color: inherit;
@@ -116,7 +161,46 @@
 .evra-root.evra-view input[type=range]::-webkit-slider-thumb,
 .evra-root.evra-view input[type=range]::-webkit-slider-runnable-track,
 .evra-root.evra-view input[type=color]::-webkit-color-swatch {
-	all: revert;
+	appearance: revert;
+	background: revert;
+	border: revert;
+	border-radius: revert;
+	box-shadow: revert;
+	outline: revert;
+	outline-offset: revert;
+	margin: revert;
+	padding: revert;
+	width: revert;
+	height: revert;
+	min-width: revert;
+	min-height: revert;
+	max-width: revert;
+	max-height: revert;
+	align-items: revert;
+	justify-content: revert;
+	gap: revert;
+	flex: revert;
+	line-height: revert;
+	letter-spacing: revert;
+	text-align: revert;
+	text-transform: revert;
+	text-decoration: revert;
+	text-indent: revert;
+	text-shadow: revert;
+	white-space: revert;
+	vertical-align: revert;
+	cursor: revert;
+	opacity: revert;
+	filter: revert;
+	backdrop-filter: revert;
+	transform: revert;
+	transition: revert;
+	animation: revert;
+	user-select: revert;
+	pointer-events: revert;
+	accent-color: revert;
+	caret-color: revert;
+	overflow: revert;
 }
 .evra-root.evra-view input[type=checkbox]::after {
 	content: none;
@@ -202,7 +286,6 @@
 	cursor:grabbing;
 	box-shadow:0 0 0 2px var(--evra-accent),var(--evra-shadow-lift);
 	z-index:10;
-	transition:none!important;
 	rotate:-.6deg
 }
 .evra-root.evra-view .cards.v .evra-card,
@@ -215,6 +298,10 @@
 }
 .evra-root.evra-view .cards .evra-card.settle {
 	transition:left .26s cubic-bezier(.2,.8,.2,1),top .26s cubic-bezier(.2,.8,.2,1),rotate .26s
+}
+/* after the rules above, and as specific, so a card being dragged follows the pointer without easing */
+.evra-root.evra-view .cards .evra-card.dragging {
+	transition:none
 }
 .evra-root.evra-view .cards.noanim .evra-card,
 .evra-root.evra-view .cards.noanim .ribbon {
@@ -494,8 +581,7 @@
 	gap:2px;
 	padding:8px 10px;
 	border-bottom:1px solid var(--evra-hair);
-	overflow-x:auto;
-	scrollbar-width:none
+	flex-wrap:wrap /* rather than scroll: a narrow panel wraps its tabs */
 }
 .evra-root.evra-view .sheet .tabs button {
 	border:0;
@@ -702,13 +788,13 @@
 	background:var(--evra-bg)
 }
 .evra-root.evra-view .lrow input {
-	width:56px !important;
-	padding:4px 6px !important;
+	width:56px;
+	padding:4px 6px;
 	font-family:var(--evra-f-mono)
 }
 .evra-root.evra-view .lrow select {
-	width:auto !important;
-	padding:4px 6px !important
+	width:auto;
+	padding:4px 6px
 }
 .evra-root.evra-view .lrow .ibtn {
 	margin-left:auto
@@ -1141,11 +1227,11 @@
 	white-space:nowrap
 }
 .evra-root.evra-view .crumb .chev {
-	padding:3px 4px !important;
-	font-size:11px !important;
-	letter-spacing:0 !important;
-	text-transform:none !important;
-	color:var(--evra-faint) !important
+	padding:3px 4px;
+	font-size:11px;
+	letter-spacing:0;
+	text-transform:none;
+	color:var(--evra-faint)
 }
 .evra-root.evra-view .evra-card .rl {
 	font-size:calc(11.5 * var(--evra-px));
@@ -1582,9 +1668,6 @@
 .evra-root.evra-view .crumb .sep {
 	color:var(--evra-faint);
 	font-size:12px
-}
-.evra-root.evra-view .crumb[hidden] {
-	display:none!important
 }
 .evra-root.evra-view .ctrls {
 	right:12px;
@@ -2055,10 +2138,6 @@
 	top:46px;
 	left:16px
 }
-/* six settings tabs don't fit in one row: wrap them rather than hide some off the edge */
-.evra-root.evra-view.thin .sheet .tabs {
-	flex-wrap:wrap
-}
 .evra-root.evra-view.thin .crumb {
 	flex-wrap:nowrap;
 	overflow:hidden
@@ -2135,9 +2214,9 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-	.evra-root.evra-view * {
-		transition: none !important;
-		animation: none !important;
+	.evra-root.evra-view :is(*, #evra-motion) { /* the id lifts this above every class-based rule, as for [hidden] */
+		transition: none;
+		animation: none;
 	}
 }
 

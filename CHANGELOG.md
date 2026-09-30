@@ -1,10 +1,14 @@
 # Changelog
 
-## 1.0.2 (beta)
+## 1.0.3
+
+- The stylesheet no longer uses !important, the all property or scrollbar styling; settings tabs wrap instead of scrolling. Verified with a new computed-style comparison (tests/e2e/css-capture.mjs) that nothing else looks different.
+
+## 1.0.2
 
 - The build lists Node's built-in modules itself instead of using the builtin-modules package.
 
-## 1.0.1 (beta)
+## 1.0.1
 
 - Evra's plugin settings are searchable in Obsidian's settings (1.13 and later), and the folder settings suggest folders. Older versions of Obsidian show them as before.
 
