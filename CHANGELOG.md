@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.4
+
+- Each release's main.js, manifest.json and styles.css come with a GitHub build attestation, and the release notes cover every change since the previous release.
+
 ## 1.0.3
 
 - The stylesheet no longer uses !important, the all property or scrollbar styling; settings tabs wrap instead of scrolling. Verified with a new computed-style comparison (tests/e2e/css-capture.mjs) that nothing else looks different.
