@@ -28,7 +28,7 @@ export default class EvraPlugin extends Plugin {
 
 		this.registerView(VIEW_TYPE, (leaf) => new EvraView(leaf, this));
 		this.registerExtensions(['evra'], VIEW_TYPE);
-		this.registerHoverLinkSource(VIEW_TYPE, { display: 'Evra', defaultMod: false });
+		this.registerHoverLinkSource(VIEW_TYPE, { display: 'Evra Timelines', defaultMod: false });
 		for (const lang of ['evra', 'throughline']) this.registerMarkdownCodeBlockProcessor(lang, (src, el, ctx) => renderEmbed(this, src, el, ctx));
 		this.addSettingTab(new EvraSettingTab(this.app, this));
 

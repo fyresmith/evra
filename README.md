@@ -1,4 +1,4 @@
-<h1 align="center">Evra</h1>
+<h1 align="center">Evra Timelines</h1>
 
 <p align="center"><b>Timelines for worldbuilders, inside Obsidian.</b><br>
 Your own calendar · eras nested as deep as you like · stories as threads · cards linked to your notes</p>
@@ -51,7 +51,7 @@ Each timeline is its own `.evra` file in your vault, and its cards can link to t
 
 ## Getting started
 
-In Obsidian, open **Settings → Community plugins → Browse**, search for **Evra**, then choose **Install** and **Enable**.
+In Obsidian, open **Settings → Community plugins → Browse**, search for **Evra Timelines**, then choose **Install** and **Enable**.
 
 Until Evra's listing in the community plugin directory is approved, install it one of these ways instead:
 
@@ -64,11 +64,11 @@ Until Evra's listing in the community plugin directory is approved, install it o
   3. Turn Evra on in **Settings → Community plugins**.
 
 **Your first timeline:**
-1. Click the Evra button in the ribbon, or run **Evra: New timeline** from the command palette. You can also right-click a folder and choose **New timeline**.
+1. Click the Evra button in the ribbon, or run **Evra Timelines: New timeline** from the command palette. You can also right-click a folder and choose **New timeline**.
 2. Double-click beside the line to add an event.
 3. Drag along the line to create an era.
 
-Want to see a finished one first? Run **Evra: Open the sample timeline**. It opens *The Chronicle of Veld*, a small world with eras, spans, lifespans and linked notes.
+Want to see a finished one first? Run **Evra Timelines: Open the sample timeline**. It opens *The Chronicle of Veld*, a small world with eras, spans, lifespans and linked notes.
 
 ## A tour
 
