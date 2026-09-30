@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.7.8 (beta)
+
+- Card, era-label, tag and ruler text follows Obsidian's font size setting (it was fixed in pixels), and cards size themselves to match.
+- The breadcrumb and the zoom and settings buttons stay above labels and tags, so nothing covers them or swallows their clicks.
+
 ## 0.7.7 (beta)
 
 - Calendar import shows a message instead of failing on odd but valid JSON (null months, leap days or weekdays in the wrong shape).

@@ -7,6 +7,8 @@
 
 .evra-view,
 .evra-embed {
+	/* one pixel at Obsidian's text size (16px by default), so card, tag, era and ruler text follow the font size setting */
+	--evra-px: calc(var(--font-text-size, 16px) / 16);
 	--evra-page: var(--background-secondary);
 	--evra-bg: var(--background-secondary);
 	--evra-surface: var(--background-primary);
@@ -330,7 +332,7 @@
 	flex:none
 }
 .evra-root.evra-view .evra-card.group .gn {
-	font:500 10.5px var(--evra-f-mono);
+	font:500 calc(10.5 * var(--evra-px)) var(--evra-f-mono);
 	color:var(--evra-muted);
 	white-space:nowrap;
 	flex:none
@@ -346,7 +348,7 @@
 	display:flex;
 	align-items:center;
 	gap:7px;
-	font-size:12.5px;
+	font-size:calc(12.5 * var(--evra-px));
 	min-width:0
 }
 .evra-root.evra-view .evra-card.group .gr span {
@@ -356,7 +358,7 @@
 	min-width:0
 }
 .evra-root.evra-view .evra-card.group .gm {
-	font-size:11.5px;
+	font-size:calc(11.5 * var(--evra-px));
 	color:var(--evra-muted);
 	padding-left:15px
 }
@@ -801,21 +803,21 @@
 	border-radius:6px;
 	background:color-mix(in srgb,var(--evra-bg) 90%,transparent);
 	box-shadow:0 0 0 1px var(--evra-hair);
-	font:600 10.5px var(--evra-f-ui);
+	font:600 calc(10.5 * var(--evra-px)) var(--evra-f-ui);
 	letter-spacing:.14em;
 	text-transform:uppercase;
 	color:var(--evra-muted);
 	white-space:nowrap;
-	max-width:220px;
+	max-width:calc(220 * var(--evra-px));
 	overflow:hidden;
 	text-overflow:ellipsis
 }
 .evra-root.evra-view .eralabels .el.deep {
-	font-size:11.5px;
+	font-size:calc(11.5 * var(--evra-px));
 	opacity:.9
 }
 .evra-root.evra-view .eralabels .el.sub {
-	font:italic 400 12.5px var(--evra-f-era);
+	font:italic 400 calc(12.5 * var(--evra-px)) var(--evra-f-era);
 	letter-spacing:0;
 	text-transform:none
 }
@@ -938,7 +940,7 @@
 	overflow:hidden
 }
 .evra-root.evra-view .evra-card .tg span {
-	font:500 10.5px var(--evra-f-mono);
+	font:500 calc(10.5 * var(--evra-px)) var(--evra-f-mono);
 	color:var(--evra-muted);
 	background:color-mix(in srgb,var(--evra-ink) 6%,transparent);
 	border-radius:4px;
@@ -1146,7 +1148,7 @@
 	color:var(--evra-faint) !important
 }
 .evra-root.evra-view .evra-card .rl {
-	font-size:11.5px;
+	font-size:calc(11.5 * var(--evra-px));
 	color:var(--evra-accent);
 	white-space:nowrap;
 	overflow:hidden;
@@ -1161,7 +1163,7 @@
 	overflow:hidden
 }
 .evra-root.evra-view .evra-card .ag span {
-	font-size:11px;
+	font-size:calc(11 * var(--evra-px));
 	border-radius:999px;
 	padding:1px 7px;
 	background:color-mix(in srgb,var(--cc) 16%,transparent);
@@ -1324,7 +1326,7 @@
 }
 .evra-root.evra-view .ruler span {
 	position:absolute;
-	font:500 10.5px/1 var(--evra-f-mono);
+	font:500 calc(10.5 * var(--evra-px))/1 var(--evra-f-mono);
 	color:var(--evra-muted);
 	white-space:nowrap;
 	padding:3px 6px;
@@ -1361,14 +1363,14 @@
 	display:flex;
 	align-items:center;
 	gap:6px;
-	max-width:190px;
+	max-width:calc(190 * var(--evra-px));
 	height:22px;
 	padding:0 9px 0 7px;
 	border-radius:999px;
 	border:1px solid color-mix(in srgb,var(--cc) 45%,var(--evra-hair));
 	background:color-mix(in srgb,var(--cc) 12%,var(--evra-surface));
 	color:var(--evra-ink);
-	font:500 11.5px var(--evra-f-ui);
+	font:500 calc(11.5 * var(--evra-px)) var(--evra-f-ui);
 	white-space:nowrap;
 	overflow:hidden;
 	text-overflow:ellipsis;
@@ -1428,7 +1430,7 @@
 }
 .evra-root.evra-view .evra-card .tt {
 	font-weight:600;
-	font-size:13px;
+	font-size:calc(13 * var(--evra-px));
 	white-space:nowrap;
 	overflow:hidden;
 	text-overflow:ellipsis;
@@ -1436,14 +1438,14 @@
 	min-width:0
 }
 .evra-root.evra-view .evra-card .dt {
-	font:500 10.5px/1.35 var(--evra-f-mono);
+	font:500 calc(10.5 * var(--evra-px))/1.35 var(--evra-f-mono);
 	color:var(--evra-muted);
 	white-space:nowrap;
 	overflow:hidden;
 	text-overflow:ellipsis
 }
 .evra-root.evra-view .evra-card .bd {
-	font-size:12.5px;
+	font-size:calc(12.5 * var(--evra-px));
 	line-height:1.45;
 	color:color-mix(in srgb,var(--evra-ink) 82%,transparent);
 	display:-webkit-box;
@@ -1521,7 +1523,7 @@
 	position:absolute;
 	right:8px;
 	bottom:5px;
-	font:500 10px var(--evra-f-mono);
+	font:500 calc(10 * var(--evra-px)) var(--evra-f-mono);
 	color:var(--evra-faint)
 }
 .evra-root.evra-view .evra-card .cnt.full {
@@ -1550,7 +1552,8 @@
 	background:color-mix(in srgb,var(--evra-bg) 86%,transparent);
 	backdrop-filter:blur(6px);
 	-webkit-backdrop-filter:blur(6px);
-	border:1px solid var(--evra-hair)
+	border:1px solid var(--evra-hair);
+	z-index:10 /* above era labels, rulers, tags and the cross bar (7-9); below popovers, toasts and the drawer */
 }
 .evra-root.evra-view .crumb button {
 	border:0;
@@ -1590,7 +1593,8 @@
 	border-radius:10px;
 	background:var(--evra-surface);
 	border:1px solid var(--evra-hair);
-	box-shadow:var(--evra-shadow)
+	box-shadow:var(--evra-shadow);
+	z-index:10
 }
 .evra-root.evra-view .ctrls hr {
 	width:18px;

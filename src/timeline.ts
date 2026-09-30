@@ -340,8 +340,18 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 	}
 	function descOf(ev: EvraEvent): string { return ev.file ? noteInfo(ev.file).desc : ev.text || ''; }
 	const plainDesc = (ev: EvraEvent) => (ev.file ? noteInfo(ev.file).plain : plainOf(ev.text || '').trim());
-	let measureFont = '', lastFont = '', family = '';
-	const uiFamily = () => family || (family = win().getComputedStyle(stage).fontFamily || 'sans-serif'); // read once: asking for styles mid-frame forces a recalculation
+	let measureFont = '', lastFont = '', family = '', scale = 1;
+	// read once (cssChanged clears family): asking for styles mid-frame forces a recalculation
+	const uiFamily = () => {
+		if (family) return family;
+		const cs = win().getComputedStyle(stage), px = parseFloat(cs.getPropertyValue('--font-text-size'));
+		scale = Number.isFinite(px) && px > 0 ? clamp(px / 16, 0.5, 3) : 1; // card text follows Obsidian's font size; see --evra-px in styles.css
+		return (family = cs.fontFamily || 'sans-serif');
+	};
+	/** Obsidian's text size over its 16px default: card, tag and era label text is drawn at this multiple. */
+	const fontScale = () => (uiFamily(), scale);
+	/** Card height without a description, and per description line, at the current text size. */
+	const scaledBaseH = () => BASE_H * fontScale(), scaledLineH = () => LINE_H * fontScale();
 	let serif = '';
 	const eraFamily = () => serif || (serif = cssVar('--evra-f-era') || 'Georgia, serif');
 	const measureCtx = createEl('canvas').getContext('2d'), measureCache = new Map<string, number>();
@@ -349,7 +359,7 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 		const k = width + '|' + text, hit = measureCache.get(k);
 		if (hit != null) return hit;
 		if (measureCache.size > 3000) measureCache.clear();
-		if (!measureFont) measureFont = `400 12.5px ${uiFamily()}`;
+		if (!measureFont) measureFont = `400 ${12.5 * fontScale()}px ${uiFamily()}`;
 		if (lastFont !== measureFont) { measureCtx.font = measureFont; lastFont = measureFont; }
 		let lines = 0;
 		for (const para of text.split('\n')) lines += Math.max(1, Math.ceil((measureCtx.measureText(para).width * 1.1) / Math.max(40, width)));
@@ -360,7 +370,8 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 	const coverOf = (ev: EvraEvent) => (ev.file ? noteInfo(ev.file).cover : null);
 	function cardSize(ev: EvraEvent, width: number) {
 		const n = descLines(ev, width);
-		return Math.round(BASE_H + (n ? n * LINE_H + 3 : 0) + ((ev.tags || []).length ? 19 : 0) + (coverOf(ev) ? 70 : 0) + (ev.rel ? 17 : 0) + (agesOf(ev).length ? 20 : 0));
+		const k = fontScale();
+		return Math.round(scaledBaseH() + (n ? n * scaledLineH() + 3 * k : 0) + (((ev.tags || []).length ? 19 : 0) + (ev.rel ? 17 : 0) + (agesOf(ev).length ? 20 : 0)) * k + (coverOf(ev) ? 70 : 0));
 	}
 	function pack(mode: 'full' | 'compact', cr: number): Layout {
 		const vert = G.vert, full = mode === 'full';
@@ -958,9 +969,10 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 		let w = eraWidths.get(k);
 		if (w == null) {
 			if (eraWidths.size > 2000) eraWidths.clear();
-			measureCtx.font = t.sub ? `italic 400 12.5px ${eraFamily()}` : `600 10.5px ${uiFamily()}`;
+			const fs = fontScale();
+			measureCtx.font = t.sub ? `italic 400 ${12.5 * fs}px ${eraFamily()}` : `600 ${10.5 * fs}px ${uiFamily()}`;
 			const text = t.sub ? t.name : t.name.toUpperCase();
-			w = Math.min(220, Math.ceil(measureCtx.measureText(text).width + (t.sub ? 0 : text.length * 10.5 * 0.14)) + 18);
+			w = Math.min(220 * fs, Math.ceil(measureCtx.measureText(text).width + (t.sub ? 0 : text.length * 10.5 * fs * 0.14)) + 18);
 			lastFont = '';
 			eraWidths.set(k, w);
 		}
@@ -975,8 +987,9 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 			tagKey = key;
 			setHTML(box, list.map((t) => `<button class="evra-tag" data-ev="${t.ev.id}" style="--cc:${t.color}" title="Go to the start of ${esc(titleOf(t.ev))}"><i></i>${esc(titleOf(t.ev))}</button>`).join(''));
 			// widths from font metrics: asking the page for them would force a full layout mid-frame
-			measureCtx.font = `500 11.5px ${uiFamily()}`;
-			tagWidths = list.map((t) => Math.min(190, Math.ceil(measureCtx.measureText(titleOf(t.ev)).width) + 31));
+			const fs = fontScale();
+			measureCtx.font = `500 ${11.5 * fs}px ${uiFamily()}`;
+			tagWidths = list.map((t) => Math.min(190 * fs, Math.ceil(measureCtx.measureText(titleOf(t.ev)).width) + 31));
 			lastFont = '';
 		}
 		(Array.from(box.children) as HTMLElement[]).forEach((el, i) => {
