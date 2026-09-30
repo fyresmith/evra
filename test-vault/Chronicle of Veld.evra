@@ -1,0 +1,482 @@
+{
+	"format": "evra",
+	"version": 1,
+	"name": "Chronicle of Veld",
+	"cal": {
+		"months": [
+			{
+				"id": "2j2vykx",
+				"name": "Thaw",
+				"days": 30,
+				"inter": false
+			},
+			{
+				"id": "vy7rq0m",
+				"name": "Seedfall",
+				"days": 30,
+				"inter": false
+			},
+			{
+				"id": "z5ohy7v",
+				"name": "Bloom",
+				"days": 30,
+				"inter": false
+			},
+			{
+				"id": "d3ysuaj",
+				"name": "Greening",
+				"days": 30,
+				"inter": false
+			},
+			{
+				"id": "uw9cxfh",
+				"name": "Highsun",
+				"days": 30,
+				"inter": false
+			},
+			{
+				"id": "gtd8ht5",
+				"name": "Longday",
+				"days": 30,
+				"inter": false
+			},
+			{
+				"id": "zqsvhov",
+				"name": "Ember",
+				"days": 30,
+				"inter": false
+			},
+			{
+				"id": "1ulj8vj",
+				"name": "Harvest",
+				"days": 30,
+				"inter": false
+			},
+			{
+				"id": "q34xpk7",
+				"name": "Fading",
+				"days": 30,
+				"inter": false
+			},
+			{
+				"id": "9okipil",
+				"name": "Frost",
+				"days": 30,
+				"inter": false
+			},
+			{
+				"id": "uvgnslc",
+				"name": "Deepnight",
+				"days": 30,
+				"inter": false
+			},
+			{
+				"id": "6uya3dy",
+				"name": "Stillwater",
+				"days": 30,
+				"inter": false
+			}
+		],
+		"units": {
+			"day": "day",
+			"month": "month",
+			"year": "year",
+			"years": "years"
+		},
+		"fmt": {
+			"year": "{U} {Y}",
+			"yearNeg": "{U} −{Y}",
+			"dateDay": "{D} {M}, {year}",
+			"dateMonth": "{M}, {year}",
+			"dateYear": "{year}",
+			"dateInter": "{M}, {year}",
+			"circa": "c. {date}",
+			"tickYear": "{year}",
+			"tickMonth": "{M}",
+			"tickDay": "{D} {Mo}",
+			"range": "{start} – {end}",
+			"ongoing": "ongoing",
+			"shortRange": true
+		},
+		"yearStart": 0,
+		"leaps": [],
+		"weekdays": [],
+		"weekStart": 0,
+		"eraBase": 1,
+		"second": {
+			"on": false,
+			"name": "Second calendar",
+			"yearDays": 400,
+			"offset": 0,
+			"fmt": "{Y} SR",
+			"onCards": true
+		}
+	},
+	"range": [
+		0,
+		80
+	],
+	"orientation": "ltr",
+	"cardWidth": 240,
+	"eras": [
+		{
+			"id": "k",
+			"parent": null,
+			"name": "The Kindling",
+			"start": 0,
+			"end": 7920,
+			"color": "2"
+		},
+		{
+			"id": "k1",
+			"parent": "k",
+			"name": "Founding",
+			"start": 0,
+			"end": 2880,
+			"color": "3"
+		},
+		{
+			"id": "k2",
+			"parent": "k",
+			"name": "River Compacts",
+			"start": 2880,
+			"end": 7920,
+			"color": "5"
+		},
+		{
+			"id": "s",
+			"parent": null,
+			"name": "The Second Age",
+			"start": 7920,
+			"end": 28800,
+			"color": "5"
+		},
+		{
+			"id": "s1",
+			"parent": "s",
+			"name": "Reign of Ash",
+			"start": 7920,
+			"end": 16920,
+			"color": "1"
+		},
+		{
+			"id": "s1a",
+			"parent": "s1",
+			"name": "Siege Winter",
+			"start": 13590,
+			"end": 14130,
+			"color": "6"
+		},
+		{
+			"id": "s1b",
+			"parent": "s1a",
+			"name": "Hunger Moon",
+			"start": 13980,
+			"end": 14010,
+			"color": "2"
+		},
+		{
+			"id": "s2",
+			"parent": "s",
+			"name": "The Quiet Years",
+			"start": 16920,
+			"end": 24480,
+			"color": "4"
+		},
+		{
+			"id": "s2a",
+			"parent": "s2",
+			"name": "Heron Years",
+			"start": 18000,
+			"end": 19440,
+			"color": "5"
+		},
+		{
+			"id": "s3",
+			"parent": "s",
+			"name": "Restoration",
+			"start": 24480,
+			"end": 28800,
+			"color": "6"
+		}
+	],
+	"events": [
+		{
+			"id": "je0mqvo",
+			"side": "a",
+			"title": "",
+			"text": "",
+			"color": "2",
+			"t": 0,
+			"file": "Veld"
+		},
+		{
+			"id": "yy0e3eq",
+			"side": "a",
+			"title": "Raising the River Keep",
+			"text": "Stone hauled downriver from the Sallow quarries. Three winters of work.",
+			"color": "3",
+			"t": 1080,
+			"end": 3240,
+			"file": null
+		},
+		{
+			"id": "0paiu9b",
+			"side": "b",
+			"title": "First River Compact",
+			"text": "Fisher-clans and the salt guild agree on tolls at the mouth of the Sallow.",
+			"color": "5",
+			"t": 3002,
+			"file": null
+		},
+		{
+			"id": "zee401x",
+			"side": "a",
+			"title": "The Great Flood",
+			"text": "The Sallow breaks its banks. The lower market is lost; the Keep holds.",
+			"color": "5",
+			"t": 5592,
+			"file": null
+		},
+		{
+			"id": "e7e7mm9",
+			"side": "a",
+			"title": "Whispers of the Pale Court",
+			"text": "Rumors of a hidden court beneath the Keep. No one agrees when they began.",
+			"color": "6",
+			"t": 7200,
+			"end": 12240,
+			"os": true,
+			"file": null
+		},
+		{
+			"id": "v07rw6x",
+			"side": "b",
+			"title": "",
+			"text": "",
+			"color": "6",
+			"t": 7920,
+			"file": "Queen Isolde"
+		},
+		{
+			"id": "7l40v5w",
+			"side": "a",
+			"title": "",
+			"text": "",
+			"color": "1",
+			"t": 10800,
+			"end": 15900,
+			"file": "The Long War",
+			"icon": "⚔",
+			"tags": [
+				"war"
+			]
+		},
+		{
+			"id": "4ru3c01",
+			"side": "b",
+			"title": "",
+			"text": "",
+			"color": "3",
+			"t": 12093,
+			"end": 28800,
+			"oe": true,
+			"file": "Mira Ashdown",
+			"life": true
+		},
+		{
+			"id": "zrzotia",
+			"side": "b",
+			"title": "Siege of the Keep begins",
+			"text": "Ashen banners on the east bank before the first frost.",
+			"color": "1",
+			"t": 13590,
+			"file": null
+		},
+		{
+			"id": "inef2nu",
+			"side": "a",
+			"title": "",
+			"text": "",
+			"color": "1",
+			"t": 13694,
+			"file": "Fall of the River Keep",
+			"icon": "⚑",
+			"tags": [
+				"war",
+				"keep"
+			]
+		},
+		{
+			"id": "pnf2q3k",
+			"side": "a",
+			"title": "Plague of Salt",
+			"text": "Brine-fever spreads through the camps on both banks of the river.",
+			"color": "3",
+			"t": 14850,
+			"end": 15480,
+			"file": null
+		},
+		{
+			"id": "g55vcnw",
+			"side": "b",
+			"title": "",
+			"text": "",
+			"color": "4",
+			"t": 15920,
+			"file": "Treaty of Sallow"
+		},
+		{
+			"id": "bbza1g4",
+			"side": "b",
+			"title": "Death of Isolde",
+			"text": "The queen dies at Sallowmere. The regency council takes the seal.",
+			"color": null,
+			"t": 16920,
+			"file": null
+		},
+		{
+			"id": "4zj2oz5",
+			"side": "b",
+			"title": "Mira's first chart",
+			"text": "The first survey of the delta shoals, drawn by [[Mira Ashdown]] from a borrowed skiff.",
+			"color": "3",
+			"t": 17730,
+			"circa": 360,
+			"file": null
+		},
+		{
+			"id": "td1gwgu",
+			"side": "a",
+			"title": "",
+			"text": "",
+			"color": "5",
+			"t": 17910,
+			"end": 19140,
+			"file": "The Heron"
+		},
+		{
+			"id": "od0fr4a",
+			"side": "b",
+			"title": "The pale comet",
+			"text": "Seen for forty nights. The Archive begins keeping sky records.",
+			"color": "2",
+			"t": 20160,
+			"file": null
+		},
+		{
+			"id": "o1vh9cb",
+			"side": "a",
+			"title": "Founding of the Archive",
+			"text": "Mira gives her charts to the city; the old customs house becomes a library.",
+			"color": "4",
+			"t": 22170,
+			"file": null,
+			"rel": {
+				"to": "od0fr4a",
+				"from": "start",
+				"offset": 2010,
+				"at": 20160
+			}
+		},
+		{
+			"id": "wcxqehu",
+			"side": "b",
+			"title": "Restoration Charter",
+			"text": "The river cities sign a common charter. The Keep is rebuilt as a lighthouse.",
+			"color": "4",
+			"t": 24480,
+			"file": null
+		}
+	],
+	"lastView": [
+		10440,
+		16920
+	],
+	"now": 18819,
+	"palette": [
+		{
+			"id": "1",
+			"name": "Red",
+			"hex": null
+		},
+		{
+			"id": "2",
+			"name": "Orange",
+			"hex": null
+		},
+		{
+			"id": "3",
+			"name": "Yellow",
+			"hex": null
+		},
+		{
+			"id": "4",
+			"name": "Green",
+			"hex": null
+		},
+		{
+			"id": "5",
+			"name": "Cyan",
+			"hex": null
+		},
+		{
+			"id": "6",
+			"name": "Purple",
+			"hex": null
+		}
+	],
+	"opts": {
+		"spanStyle": "threads",
+		"groupOver": 3,
+		"snapTo": "auto",
+		"bands": true,
+		"subLabels": true,
+		"cardLines": 99,
+		"tint": true,
+		"v": 2,
+		"sync": {
+			"on": false,
+			"fields": {
+				"date": {
+					"on": true,
+					"key": "timeline-date"
+				},
+				"year": {
+					"on": true,
+					"key": "timeline-year"
+				},
+				"month": {
+					"on": true,
+					"key": "timeline-month"
+				},
+				"day": {
+					"on": false,
+					"key": "timeline-day"
+				},
+				"end": {
+					"on": false,
+					"key": "timeline-end"
+				},
+				"era": {
+					"on": true,
+					"key": "timeline-era"
+				},
+				"subera": {
+					"on": false,
+					"key": "timeline-sub-era"
+				},
+				"eras": {
+					"on": false,
+					"key": "timeline-eras"
+				},
+				"timeline": {
+					"on": false,
+					"key": "timeline"
+				}
+			},
+			"written": [],
+			"notes": []
+		}
+	}
+}
