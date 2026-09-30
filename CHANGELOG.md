@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.7.30 (beta)
+
+- If the timeline's file changes on disk while you have unsaved edits, both sets of changes are kept (yours win where both changed the same thing).
+
 ## 0.7.29 (beta)
 
 - When two timelines sync the same note, an unrelated edit in one no longer rewrites the note and moves the other's card.

@@ -1,7 +1,7 @@
 import { Keymap, Notice, Scope, TextFileView, TFile, type WorkspaceLeaf, type ViewStateResult } from 'obsidian';
 import { makeEngine } from './engine';
 import type { TimelineHost } from './host';
-import { emptyDoc, normDoc } from './model';
+import { emptyDoc, mergeDocs, normDoc } from './model';
 import { applyProps, desiredProps, liveFields, needsWrite } from './sync';
 import { mountTimeline, type Timeline, type ViewState } from './timeline';
 import type EvraPlugin from './main';
@@ -21,6 +21,7 @@ export class EvraView extends TextFileView {
 	private redoBtn: HTMLElement;
 	private syncT = 0;
 	private ownWrites = new Map<string, ReturnType<typeof desiredProps>>();
+	private base: string | null = null; // the file as last loaded or saved, to tell unsaved changes from outside ones
 
 	constructor(leaf: WorkspaceLeaf, private plugin: EvraPlugin) {
 		super(leaf);
@@ -65,9 +66,29 @@ export class EvraView extends TextFileView {
 				return;
 			}
 		}
-		if (!this.timeline || clear) this.mount(doc);
-		else this.timeline.setDoc(doc);
+		const base = this.base;
+		this.base = data;
+		if (!this.timeline || clear) { this.mount(doc); this.seedWanted(doc); return; }
+		// Changed outside (another editor, a sync service) while this copy had unsaved changes: Obsidian would drop them, so
+		// merge the two, card by card
+		this.timeline.flush();
+		const ours = this.timeline.getDoc();
+		let baseDoc: EvraDoc = null;
+		try { baseDoc = base != null ? normDoc(JSON.parse(base), name) : null; } catch { /* base unreadable: take the outside version */ }
+		const canon = (d: EvraDoc) => JSON.stringify({ format: 'evra', version: 1, ...d }); // as saved, so key order matches
+		if (baseDoc && canon(baseDoc) !== canon(ours) && canon(ours) !== canon(doc)) {
+			doc = normDoc(mergeDocs(baseDoc, JSON.parse(JSON.stringify(ours)), doc), name);
+			this.requestSave();
+			new Notice(`“${name}” changed on disk while it had unsaved changes here. Both sets of changes were kept.`);
+		}
+		this.timeline.setDoc(doc);
 		this.seedWanted(this.timeline.getDoc());
+	}
+
+	async save(clear?: boolean): Promise<void> {
+		const p = super.save(clear);
+		if (typeof this.data === 'string' && this.broken == null) this.base = this.data; // set as the save starts
+		await p;
 	}
 
 	clear(): void { /* setViewData(…, true) replaces the timeline */ }

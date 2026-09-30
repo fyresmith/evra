@@ -308,3 +308,33 @@ export function sampleDoc(link: (name: string) => string = (n) => n): EvraDoc {
 	find('Founding of the Archive').rel = { to: find('The pale comet').id, from: 'start' }; // the Archive was founded because of the comet
 	return doc;
 }
+
+const sameJSON = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
+const idList = (v: unknown): v is { id: string }[] => Array.isArray(v) && v.every((x) => isObj(x) && typeof x.id === 'string');
+
+/** A three-way merge, for a file changed outside while this copy had unsaved changes: base is the file as last loaded
+    or saved. Lists of things with ids (cards, eras, colors, months…) merge item by item, other objects key by key, and
+    anything else takes the side that changed it; when both changed the same value, ours (what is on screen) wins.
+    An item deleted on one side stays deleted unless the other side changed it. */
+export function mergeDocs(base: unknown, ours: unknown, theirs: unknown): unknown {
+	if (sameJSON(ours, theirs) || sameJSON(base, theirs)) return ours;
+	if (sameJSON(base, ours)) return theirs;
+	if (isObj(ours) && isObj(theirs)) {
+		const b = isObj(base) ? base : {}, out: Record<string, unknown> = {};
+		for (const k of new Set([...Object.keys(theirs), ...Object.keys(ours)])) {
+			const v = mergeDocs(b[k], ours[k], theirs[k]);
+			if (v !== undefined) out[k] = v;
+		}
+		return out;
+	}
+	if (idList(ours) && idList(theirs)) {
+		const bm = new Map((idList(base) ? base : []).map((x) => [x.id, x])), om = new Map(ours.map((x) => [x.id, x])), tm = new Map(theirs.map((x) => [x.id, x]));
+		const out: unknown[] = [];
+		// kept unless the other side deleted it without this side changing it
+		const keep = (x: { id: string }) => !bm.has(x.id) || !sameJSON(bm.get(x.id), x);
+		for (const x of theirs) { if (om.has(x.id)) out.push(mergeDocs(bm.get(x.id), om.get(x.id), x)); else if (keep(x)) out.push(x); }
+		for (const x of ours) if (!tm.has(x.id) && keep(x)) out.push(x);
+		return out;
+	}
+	return ours;
+}
