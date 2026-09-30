@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.8.11 (beta)
+
+- Era labels stack without overlapping, in time order, in every direction.
+
 ## 0.8.10 (beta)
 
 - An open card menu shows a color picked with the number keys.
