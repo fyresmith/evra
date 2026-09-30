@@ -364,7 +364,7 @@ export class EvraView extends TextFileView {
 	private async syncNotes(doc: EvraDoc) {
 		const sy = doc.opts.sync;
 		if (!sy || !sy.on || this.timeline?.getDoc() !== doc) return;
-		const { writes, linked } = this.desiredWrites(doc), shared = this.plugin.propWrites;
+		const { writes, linked } = this.desiredWrites(doc), shared = this.plugin.propWrites, todo: typeof writes = [];
 		for (const [file, props] of writes) {
 			const key = JSON.stringify(props), same = this.wanted.get(file.path) === key;
 			this.wanted.set(file.path, key);
@@ -374,11 +374,16 @@ export class EvraView extends TextFileView {
 			// is. Otherwise every edit in either timeline would rewrite the notes they share, and move the other's cards.
 			const last = shared.get(file.path);
 			if (same && last && last.view !== this && !needsWrite(fm, last.props)) continue;
-			try {
-				await this.app.fileManager.processFrontMatter(file, (m: Record<string, unknown>) => { applyProps(m, props); });
-				this.ownWrites.set(file.path, props); shared.set(file.path, { view: this, props });
-			} catch (err) { console.error('Evra: couldn’t update the properties of', file.path, err); }
+			todo.push([file, props]);
 		}
+		// Several notes at a time: one after another, turning sync on for a few dozen notes took seconds. Each write is
+		// recorded as Evra's own before it starts, so its metadata change can't be taken for an edit in the note.
+		const write = async ([file, props]: (typeof writes)[number]) => {
+			this.ownWrites.set(file.path, props); shared.set(file.path, { view: this, props });
+			try { await this.app.fileManager.processFrontMatter(file, (m: Record<string, unknown>) => { applyProps(m, props); }); }
+			catch (err) { this.ownWrites.delete(file.path); shared.delete(file.path); console.error('Evra: couldn’t update the properties of', file.path, err); }
+		};
+		for (let i = 0; i < todo.length; i += 16) await Promise.all(todo.slice(i, i + 16).map(write));
 		const written = liveFields(doc).map((x) => x[1]);
 		if (JSON.stringify([written, linked]) !== JSON.stringify([sy.written, sy.notes])) {
 			sy.written = written; sy.notes = linked;

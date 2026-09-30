@@ -14,7 +14,8 @@ test('R2B1 two timelines syncing one note: no tug of war, one follows a real cha
 	await p.ev(`app.vault.create('Other.evra', ${JSON.stringify(JSON.stringify(other))}).then(() => 1)`);
 	await h.open(); await syncOn(p, h);
 	const main0 = await tOf(p, 'Chronicle of Veld.evra', 'Treaty of Sallow');
-	t.eq((await fmOf(p, 'Treaty of Sallow.md'))['timeline-year'], Math.floor(main0 / Y), 'main timeline wrote its year');
+	let year; for (let i = 0; i < 50 && (year = (await fmOf(p, 'Treaty of Sallow.md'))['timeline-year']) !== Math.floor(main0 / Y); i++) await p.sleep(100);
+	t.eq(year, Math.floor(main0 / Y), 'main timeline wrote its year');
 	await p.ev(`app.workspace.getLeaf('split').openFile(app.vault.getAbstractFileByPath('Other.evra')).then(() => 1)`); await p.sleep(1200);
 	// an edit in Other that has nothing to do with the note
 	await countWrites(p, 'Treaty of Sallow.md');

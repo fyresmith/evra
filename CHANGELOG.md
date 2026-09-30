@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.8.27 (beta)
+
+- Turning on note sync writes notes 16 at a time, so the first properties arrive in well under a second.
+
 ## 0.8.26 (beta)
 
 - If the timeline's file is briefly broken on disk (for example mid-sync), unsaved edits are held and merged into the next valid version.
