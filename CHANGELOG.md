@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.8.22 (beta)
+
+- Escape while drawing a selection box puts the selection back as it was.
+
 ## 0.8.21 (beta)
 
 - Ctrl/⌘ D and other commands do nothing in the middle of a drag.

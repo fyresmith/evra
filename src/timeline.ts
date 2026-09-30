@@ -1605,6 +1605,7 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 		const d = drag;
 		drag = null; win().clearTimeout(d.timer); tipEl.hidden = true; marqueeEl.hidden = true; stage.setCssStyles({ cursor: '' });
 		if (d.before != null) restore(d.before);
+		if (d.type === 'marquee') setSel(d.keep || []);
 		invalidate();
 	}
 	stage.addEventListener('pointerup', endPointer);
