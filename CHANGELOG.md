@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.7.17 (beta)
+
+- 109 new end-to-end tests for editing, the keyboard, menus, multi-select, copy and paste, and undo.
+
 ## 0.7.16 (beta)
 
 - S turns every selected card into a span (or back), not just one.
