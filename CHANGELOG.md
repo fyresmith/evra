@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.2 (beta)
+
+- The build lists Node's built-in modules itself instead of using the builtin-modules package.
+
 ## 1.0.1 (beta)
 
 - Evra's plugin settings are searchable in Obsidian's settings (1.13 and later), and the folder settings suggest folders. Older versions of Obsidian show them as before.
