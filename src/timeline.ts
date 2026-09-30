@@ -1501,8 +1501,21 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 		repaint(); saveSoon();
 	}, { passive: false });
 
-	stage.addEventListener('dblclick', (e) => {
-		// Pointer capture (used for dragging) retargets the double-click to the stage, so ask what is really under the pointer
+	/* Double-clicks are detected here rather than with the browser's dblclick event. The browser only counts a
+	   double-click when both clicks land on the same element, but eras, threads and dots are redrawn after every
+	   click, so the second click always lands on a new element and the double-click never fires. */
+	let clickDown: { x: number; y: number } = null, lastClick = { t: 0, x: 0, y: 0 };
+	stage.addEventListener('pointerdown', (e) => { clickDown = e.button === 0 ? { x: e.clientX, y: e.clientY } : null; }, true);
+	stage.addEventListener('pointerup', (e) => {
+		const down = clickDown;
+		clickDown = null;
+		if (!down || Math.hypot(e.clientX - down.x, e.clientY - down.y) > 5) return;
+		const now = e.timeStamp;
+		if (now - lastClick.t < 500 && Math.hypot(e.clientX - lastClick.x, e.clientY - lastClick.y) < 8) { lastClick = { t: 0, x: 0, y: 0 }; onDoubleClick(e); }
+		else lastClick = { t: now, x: e.clientX, y: e.clientY };
+	});
+	function onDoubleClick(e: PointerEvent) {
+		// pointer capture (used for dragging) retargets events to the stage, so ask what is really under the pointer
 		const hit = doc().elementFromPoint(e.clientX, e.clientY) || (e.target as Element);
 		if (closest(hit, '.ui')) return;
 		const th = attr(hit, 'data-thread');
@@ -1517,7 +1530,7 @@ export function mountTimeline(root: HTMLElement, host: TimelineHost, initial: Ev
 		const L = local(e);
 		if (Math.abs(L.c) < 14) return;
 		addEvent(E.nearestYearStart(tAt(L.s)), L.c < 0 ? 'a' : 'b');
-	});
+	}
 	stage.addEventListener('click', (e) => {
 		const a = closest(e.target, '[data-act]');
 		if (!a) return;

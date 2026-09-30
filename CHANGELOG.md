@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.4.3 (beta)
+
+- Fixed: double-clicking inside an era's shading (or on a span's thread) did nothing. Evra now detects double-clicks itself, because the browser only counts a double-click when both clicks land on the same element, and those are redrawn between clicks.
+
 ## 0.4.2 (beta)
 
 - The zoom and settings buttons, the year ruler, the era rail and messages now stay clear of Obsidian's status bar, which floats over the bottom right of the workspace.
