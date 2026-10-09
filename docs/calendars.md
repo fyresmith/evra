@@ -92,4 +92,4 @@ Moons, seasons and events aren't imported. Evra has no use for them yet.
 
 ## Saving a calendar for new timelines
 
-Once a calendar is set up the way you like, go to **Settings → Timeline → Defaults** and choose **Use these settings for new timelines**. Every new timeline will start with this calendar, its formats, its colors and its card options. You can forget the saved settings in Obsidian's **Settings → Evra**.
+Once a calendar is set up the way you like, go to **Settings → Timeline → Defaults** and choose **Use these settings for new timelines**. Every new timeline will start with this calendar, its formats, its colors and its card options. You can forget the saved settings in Obsidian's **Settings → Evra Timelines**.

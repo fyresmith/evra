@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.0.8
+
+- The manual has an index and new pages: installation, getting started, settings, known limitations and troubleshooting. The roadmap has its own page, and the development notes and file format moved to docs/dev.
+- The README opens with a banner and says to install Evra from Obsidian's community plugin directory. Nothing in the plugin itself changed.
+
 ## 1.0.7
 
 - The plugin is now called Evra Timelines, so it's easier to find in the community plugin browser. Its id, files, commands and settings are unchanged; commands now appear as “Evra Timelines: …” in the command palette.

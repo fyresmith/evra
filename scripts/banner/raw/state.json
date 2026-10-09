@@ -1,0 +1,22 @@
+{
+	"obsidian": "obsidian/1.13.7",
+	"plugin": "1.0.7",
+	"window": [
+		990,
+		760,
+		3
+	],
+	"file": "Chronicle of Veld.evra",
+	"view": {
+		"v0": 10330,
+		"scale": 0.15,
+		"x": 0
+	},
+	"cards": [
+		"The Long War, Year 30 – Bloom, Year 44",
+		"Fall of the River Keep, 15 Thaw, Year 38",
+		"Plague of Salt, Greening, Year 41 – Year 43",
+		"Mira Ashdown, 4 Harvest, Year 33 – ongoing",
+		"Siege of the Keep begins, Frost, Year 37"
+	]
+}

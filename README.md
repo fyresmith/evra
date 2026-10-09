@@ -1,15 +1,8 @@
-<h1 align="center">Evra Timelines</h1>
+<h1 align="center">Evra Timelines for Obsidian</h1>
 
-<p align="center"><b>Timelines for worldbuilders, inside Obsidian.</b><br>
-Your own calendar · eras nested as deep as you like · stories as threads · cards linked to your notes</p>
+<p align="center"><img src="docs/media/banner.png" alt="Evra Timelines for Obsidian: timelines for worldbuilders. A timeline of an invented world, with cards on both sides of a line of time, a war drawn as a thread beside it, and eras named along the edge."></p>
 
-<p align="center">
-<img alt="Version" src="https://img.shields.io/badge/version-1.0.0-7c5cff">
-<img alt="Obsidian" src="https://img.shields.io/badge/Obsidian-1.6%2B-483699">
-<img alt="License" src="https://img.shields.io/badge/license-MIT-3a9a5c">
-</p>
-
-<p align="center"><img src="docs/media/tour.gif" alt="Scrolling through a timeline in Evra" width="900"></p>
+<p align="center">Your own calendar · eras nested as deep as you like · stories as threads · cards linked to your notes</p>
 
 Most timeline tools assume our calendar and our kind of history. Evra is built for the ones you make up:
 - a calendar with thirteen moons and a festival week;
@@ -17,6 +10,8 @@ Most timeline tools assume our calendar and our kind of history. Evra is built f
 - a history that runs to three thousand years and two thousand events.
 
 Each timeline is its own `.evra` file in your vault, and its cards can link to the notes you already have.
+
+<p align="center"><img src="docs/media/tour.gif" alt="Scrolling through a timeline in Evra" width="900"></p>
 
 <table>
 <tr>
@@ -26,49 +21,24 @@ Each timeline is its own `.evra` file in your vault, and its cards can link to t
 <tr><td align="center"><sub>Light theme</sub></td><td align="center"><sub>Dark theme</sub></td></tr>
 </table>
 
-## Contents
+## Installation
 
-- [Getting started](#getting-started)
-- [A tour](#a-tour)
-  - [Add events in seconds](#add-events-in-seconds)
-  - [Drag to change dates](#drag-to-change-dates)
-  - [Eras inside eras](#eras-inside-eras)
-  - [Any calendar you can imagine](#any-calendar-you-can-imagine)
-  - [Stories as threads](#stories-as-threads)
-  - [Cards that know your notes](#cards-that-know-your-notes)
-  - [Timelines inside notes](#timelines-inside-notes)
-  - [Find anything, jump anywhere](#find-anything-jump-anywhere)
-  - [Filters, tags and card options](#filters-tags-and-card-options)
-  - [Colors that stay consistent](#colors-that-stay-consistent)
-  - [Any direction](#any-direction)
-  - [Built for big worlds](#built-for-big-worlds)
-  - [Made for the keyboard, too](#made-for-the-keyboard-too)
-- [Everything else](#everything-else)
-- [Documentation](#documentation)
-- [Roadmap](#roadmap)
-- [Privacy and your files](#privacy-and-your-files)
-- [Contributing](#contributing)
+Evra needs Obsidian 1.6 or later, on a computer, a phone or a tablet.
+
+Install it from Obsidian's [community plugin directory](https://community.obsidian.md/plugins/evra): open
+**Settings → Community plugins → Browse**, search for **Evra Timelines**, then choose **Install** and **Enable**.
+
+More in [Installation](docs/installation.md).
 
 ## Getting started
 
-In Obsidian, open **Settings → Community plugins → Browse**, search for **Evra Timelines**, then choose **Install** and **Enable**.
-
-Until Evra's listing in the community plugin directory is approved, install it one of these ways instead:
-
-- **With BRAT:**
-  1. Install the [BRAT](https://github.com/TfTHacker/obsidian42-brat) plugin.
-  2. Run **BRAT: Add a beta plugin for testing** and enter `fyresmith/evra`.
-- **By hand:**
-  1. Download `main.js`, `manifest.json` and `styles.css` from the [latest release](https://github.com/fyresmith/evra/releases/latest).
-  2. Put them in `<your vault>/.obsidian/plugins/evra/`.
-  3. Turn Evra on in **Settings → Community plugins**.
-
-**Your first timeline:**
 1. Click the Evra button in the ribbon, or run **Evra Timelines: New timeline** from the command palette. You can also right-click a folder and choose **New timeline**.
 2. Double-click beside the line to add an event.
 3. Drag along the line to create an era.
 
 Want to see a finished one first? Run **Evra Timelines: Open the sample timeline**. It opens *The Chronicle of Veld*, a small world with eras, spans, lifespans and linked notes.
+
+The [walkthrough](docs/getting-started.md) goes on from here, and the [manual](docs/README.md) covers everything.
 
 ## A tour
 
@@ -301,24 +271,16 @@ Every timeline command is also in Obsidian's command palette. None of them have 
 - **Themes**: Evra takes its colors and fonts from your Obsidian theme, in light and dark.
 - **Touch**: pinch to zoom, and press and hold for the menu. On narrow screens, vertical timelines put every card on one side of the line so none are cut off.
 
-## Documentation
+## Limitations
 
-| Guide | What's in it |
-|---|---|
-| [User guide](docs/user-guide.md) | Cards, spans, eras, selecting, searching, filters, export |
-| [Calendars](docs/calendars.md) | Months, leap years, festival days, weekdays, era years, second calendars, importing |
-| [Date formats](docs/formats.md) | Every label template and its tokens |
-| [Keyboard and mouse](docs/shortcuts.md) | Every shortcut and command |
-| [Linked notes and note sync](docs/notes.md) | Linking, previews, covers, property sync |
-| [Timelines in notes](docs/embeds.md) | The `evra` code block |
-| [File format](docs/file-format.md) | What's inside a `.evra` file |
-| [Development](docs/development.md) | Building, testing, the example worlds, releasing |
+- **Sub-timelines aren't built yet.** Linking timelines into a tree, and branching one for an alternate history, is
+  what comes next: see the [roadmap](ROADMAP.md).
+- **Obsidian Sync** carries `.evra` files only with **Sync all other types** turned on. Tools that copy every file
+  (iCloud, Syncthing, Dropbox, git) carry them without any setting.
+- **Undo** covers the timeline, not your notes. What note sync wrote into a note is undone in that note.
+- **Filters** belong to the view you're looking at and aren't saved in the file. Saved views keep a stretch of time.
 
-## Roadmap
-
-**Sub-timelines** are next. You'll be able to link timelines into a tree, like continent › nation › city, or universe › galaxy › planet, and branch a timeline for alternate histories. Parent events will show as context in the timelines below them, and important events will rise into the timelines above. Version 1 of the file format already reserves the fields this needs, so your timelines won't need converting.
-
-Ideas and requests are welcome in [issues](https://github.com/fyresmith/evra/issues).
+The full list is in [Known limitations](docs/limitations.md).
 
 ## Privacy and your files
 
@@ -332,9 +294,24 @@ Ideas and requests are welcome in [issues](https://github.com/fyresmith/evra/iss
 - **Your timelines:** each one is a readable JSON file (`.evra`) in your vault. Evra changes it when you edit that timeline, or when a note it links to is renamed, so the link keeps working.
 - **Your notes:** Evra changes a note in two cases only: when you turn on note sync for a timeline that links to it, or when you ask Evra to create a note.
 
+## Documentation
+
+| | |
+|---|---|
+| [Manual](docs/README.md) | Everything Evra does, a page per topic |
+| [Getting started](docs/getting-started.md) | From an empty timeline to a small history |
+| [User guide](docs/user-guide.md) | Cards, spans, eras, selecting, searching, filters, export |
+| [Calendars](docs/calendars.md) · [Date formats](docs/formats.md) | Months, leap years, festival days, era years, and every label template |
+| [Linked notes and note sync](docs/notes.md) · [Timelines in notes](docs/embeds.md) | Cards that follow your notes, and the `evra` code block |
+| [Keyboard, mouse and commands](docs/shortcuts.md) · [Settings](docs/settings.md) | Reference |
+| [Troubleshooting](docs/troubleshooting.md) · [Known limitations](docs/limitations.md) | When something isn't as you expect |
+| [Roadmap](ROADMAP.md) · [Changelog](CHANGELOG.md) | What's planned, and what changed |
+| [Development](docs/dev/development.md) · [File format](docs/dev/file-format.md) | For contributors, and for anyone reading a `.evra` file |
+| [Issues](https://github.com/fyresmith/evra/issues) | Report a problem or ask for something |
+
 ## Contributing
 
-Bug reports, ideas and pull requests are welcome. See [Development](docs/development.md) to build Evra, run the tests, and generate the large example world. Before opening a pull request, run `npm run lint` and `npm test`.
+Bug reports, ideas and pull requests are welcome. See [Development](docs/dev/development.md) to build Evra, run the tests, and generate the large example world. Before opening a pull request, run `npm run check`.
 
 ## License
 

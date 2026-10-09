@@ -1,6 +1,6 @@
 /* The Evra file format (version 1).
    A timeline is one JSON file with the .evra extension. Dates are whole numbers: days counted from
-   day 1 of year 0 of the timeline's own calendar. See docs/file-format.md. */
+   day 1 of year 0 of the timeline's own calendar. See docs/dev/file-format.md. */
 
 export type Side = 'a' | 'b'; // 'a' is left (vertical) or top (horizontal), 'b' is right or bottom
 export type Orientation = 'ttb' | 'btt' | 'ltr' | 'rtl';

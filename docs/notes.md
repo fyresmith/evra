@@ -13,10 +13,10 @@ To link a card to a note:
 
 - **Drag notes onto the timeline** from the file explorer, search results or a link. Each note becomes a card where you drop it.
 - Use **Card options → Link to note…** to choose a note.
-- Use **Card options → Convert to note**. This makes a new note from the card's title and description. It goes next to the timeline, or in the folder set in Obsidian's **Settings → Evra**.
+- Use **Card options → Convert to note**. This makes a new note from the card's title and description. It goes next to the timeline, or in the folder set in Obsidian's **Settings → Evra Timelines**.
 - Use **Settings → Notes → Create cards from notes**. See [Creating cards from dated notes](#creating-cards-from-dated-notes).
 
-Double-clicking a linked card opens its note. The note opens in the setting chosen under **Settings → Evra → Open linked notes**: beside the timeline (the default), in a new tab, or in place of the timeline. Hold Ctrl or ⌘ while clicking to open it in a new tab instead.
+Double-clicking a linked card opens its note. The note opens in the setting chosen under Obsidian's **Settings → Evra Timelines → Open linked notes**: beside the timeline (the default), in a new tab, or in place of the timeline. Hold Ctrl or ⌘ while clicking to open it in a new tab instead.
 
 **Unlink note** keeps the card, but turns it back into a plain card with the note's name and excerpt.
 

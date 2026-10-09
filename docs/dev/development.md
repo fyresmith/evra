@@ -10,6 +10,7 @@ npm run dev            # rebuild main.js on every change
 npm run build          # type-check and build a minified main.js
 npm test               # calendar, formatting and note-sync tests
 npm run lint           # ESLint with eslint-plugin-obsidianmd (the rules used in plugin review)
+npm run check          # build, lint and test: run this before a pull request
 npm run install-vault  # copy the plugin into ./test-vault (or: npm run install-vault -- /path/to/vault)
 npm run e2e            # end-to-end tests in real Obsidian (headless; see below)
 npm run big-world      # generate Aerth, a large example world (~2,700 notes, 91 eras), in test-vault/Aerth
@@ -65,7 +66,7 @@ npm run e2e -- --grep "note sync"    # just the tests whose names match
 npm run e2e -- --repeat 3            # run everything several times
 ```
 
-Screenshots of failures go to `test-dist/e2e-failures`. Obsidian is found at `/usr/lib/electron43/electron` and `/usr/lib/obsidian/app.asar`; set `OBSIDIAN_ELECTRON` and `OBSIDIAN_ASAR` for other installs. The scenarios live in `tests/e2e/specs.mjs`.
+Screenshots of failures go to `test-dist/e2e-failures`. Obsidian is found at `/usr/lib/electron43/electron` and `/usr/lib/obsidian/app.asar`; set `OBSIDIAN_ELECTRON` and `OBSIDIAN_ASAR` for other installs. The scenarios live in `tests/e2e/specs*.mjs`.
 
 ## Visual harness
 
@@ -87,11 +88,13 @@ To extract `app.css` and `enhance.js`, run `npx asar extract /usr/lib/obsidian/o
 3. Push the commit and its tag: `git push && git push --tags`.
 4. The **Release** GitHub Action checks and builds the plugin, then publishes a release with `main.js`, `manifest.json` and `styles.css` attached, using that version's section of `CHANGELOG.md` as its notes. (A `0.x` tag, from before 1.0, makes a draft pre-release instead.)
 
+Each release's three files carry a signed record of the build that made them: `gh attestation verify main.js --repo fyresmith/evra` checks one.
+
 The release tag must match the version in `manifest.json` exactly, with no `v` prefix. `npm version` is set up to create tags that way (see `.npmrc`).
 
-### Submitting to the community plugin list
+### The community plugin directory
 
-Obsidian's docs describe the full process: <https://docs.obsidian.md/Plugins/Releasing/Submit+your+plugin>. In short:
+Evra is listed in Obsidian's directory as [Evra Timelines](https://community.obsidian.md/plugins/evra), and the directory picks up each new release by itself. This is how it got there. Obsidian's docs describe the full process: <https://docs.obsidian.md/Plugins/Releasing/Submit+your+plugin>. In short:
 
 1. Make sure the repository is public, with `README.md`, `LICENSE` and `manifest.json` at its root. The directory reads `manifest.json` from the default branch, so push it first.
 2. Publish a GitHub release as described above. Its tag must equal the manifest version, and it must have `main.js`, `manifest.json` and `styles.css` attached.
@@ -100,6 +103,18 @@ Obsidian's docs describe the full process: <https://docs.obsidian.md/Plugins/Rel
 
 The plugin's id (`evra`) must stay unique and can't contain "obsidian".
 
+## The banner
+
+The README's banner, the repository's social preview and the mark come from two scripts:
+
+```sh
+npm run build && npm run install-vault
+node scripts/banner/shoot.mjs   # a screenshot of the sample world in a headless Obsidian, into scripts/banner/raw/
+npm run banner                  # banner.png, social-preview.png and the mark, into docs/media/ (needs Chromium)
+```
+
+Take the screenshot again when the timeline looks different. The social preview is set by hand, in the repository's settings on GitHub.
+
 ## Contributing
 
-Issues and pull requests are welcome. Before opening a pull request, run `npm run build`, `npm run lint` and `npm test`. Keep UI text in sentence case. Don't add default hotkeys to commands.
+Issues and pull requests are welcome. Before opening a pull request, run `npm run check`. Keep UI text in sentence case. Don't add default hotkeys to commands.
