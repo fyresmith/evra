@@ -47,6 +47,7 @@ You choose which fields to sync, and you can rename any property:
 | Year | `timeline-year` | yes | The year number |
 | Month | `timeline-month` | yes | The month name (calendars with months only) |
 | Day | `timeline-day` | no | The day of the month |
+| Start date | `timeline-start` | no | The start date. On a span this is only the start, where Date reads "start – end" otherwise it's the same as Date |
 | End date (spans) | `timeline-end` | no | A span's end date, or the word for ongoing |
 | Era | `timeline-era` | yes | The top-level era |
 | Sub-era | `timeline-sub-era` | no | The innermost era |

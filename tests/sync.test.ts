@@ -52,6 +52,19 @@ doc.opts.sync.fields.year.key = 'year';
 	eq(JSON.stringify(gone), '{"keep":1}', 'removing removes any capitalisation');
 }
 
+// start date: written for every card; it differs from date only on spans
+{
+	doc.opts.sync.fields.start.on = true;
+	const span = { ...ev, end: E.toT(40, 0, 0) };
+	const ps = desiredProps(doc, E, span), pm = desiredProps(doc, E, ev);
+	eq(ps['timeline-start'], E.fmt(span.t), 'a span writes only its start date');
+	eq(ps['timeline-date'], E.fmtRange(span), 'while date holds the whole range');
+	ok(ps['timeline-start'] !== ps['timeline-date'], 'so start and date differ on a span');
+	eq(pm['timeline-start'], E.fmt(ev.t), 'a moment writes its start date too');
+	eq(pm['timeline-start'], pm['timeline-date'], 'and there start and date are the same');
+	doc.opts.sync.fields.start.on = false;
+}
+
 // unlinking removes only timeline properties
 doc.opts.sync.written = ['timeline-date', 'year', 'timeline-month', 'timeline-era', 'timeline-sub-era'];
 applyProps(fm, desiredProps(doc, E, null));
