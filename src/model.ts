@@ -9,7 +9,7 @@ export const defaultPalette = (): ColorPreset[] =>
 
 export const SYNC_FIELDS: [SyncKey, string, string, boolean][] = [
 	['date', 'Date', 'timeline-date', true], ['year', 'Year', 'timeline-year', true], ['month', 'Month', 'timeline-month', true],
-	['day', 'Day', 'timeline-day', false], ['end', 'End date (spans)', 'timeline-end', false], ['era', 'Era', 'timeline-era', true],
+	['day', 'Day', 'timeline-day', false], ['start', 'Start date', 'timeline-start', false], ['end', 'End date (spans)', 'timeline-end', false], ['era', 'Era', 'timeline-era', true],
 	['subera', 'Sub-era', 'timeline-sub-era', false], ['eras', 'All eras, as a list', 'timeline-eras', false], ['timeline', 'Timeline name', 'timeline', false],
 ];
 export const defaultSync = (): SyncOpts => ({

@@ -15,6 +15,7 @@ export function syncValue(k: SyncKey, ev: EvraEvent, doc: EvraDoc, E: Engine): P
 		case 'year': return p.yr + doc.cal.yearStart;
 		case 'month': return E.ci().M > 1 ? E.monthName(p.m) : null;
 		case 'day': return p.d + 1;
+		case 'start': return E.fmt(ev.t);
 		case 'end': return ev.end == null ? null : ev.oe ? doc.cal.fmt.ongoing || 'ongoing' : E.fmt(ev.end);
 		case 'era': return path[0] ? path[0].name : null;
 		case 'subera': return path.length > 1 ? path[path.length - 1].name : null;

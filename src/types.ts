@@ -112,7 +112,7 @@ export interface ColorPreset {
 	hex: string | null; // null: a built-in that follows the theme
 }
 
-export type SyncKey = 'date' | 'year' | 'month' | 'day' | 'end' | 'era' | 'subera' | 'eras' | 'timeline';
+export type SyncKey = 'date' | 'year' | 'month' | 'day' | 'start' | 'end' | 'era' | 'subera' | 'eras' | 'timeline';
 
 export interface SyncField {
 	on: boolean;
